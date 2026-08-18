@@ -36,33 +36,27 @@ class ResolvedProvider(NamedTuple):
     model: str
 
 
-def get_provider(db: Session, provider_override: Optional[str] = None) -> ResolvedProvider:
+def get_provider(db: Session, user_id: int, provider_override: Optional[str] = None) -> ResolvedProvider:
     """
-    Loads a ProviderSetting from DB and returns the initialized AiProvider along with
-    which provider/model were actually resolved. If provider_override is given, uses
-    that provider's saved settings instead of the default.
+    Loads this user's ProviderSetting from DB and returns the initialized AiProvider
+    along with which provider/model were actually resolved. If provider_override is
+    given, uses that provider's saved settings instead of the user's default.
     """
+    base_query = db.query(models.ProviderSetting).filter(models.ProviderSetting.user_id == user_id)
+
     if provider_override:
         provider_name = provider_override.lower().strip()
-        setting = (
-            db.query(models.ProviderSetting)
-            .filter(models.ProviderSetting.provider == provider_name)
-            .first()
-        )
+        setting = base_query.filter(models.ProviderSetting.provider == provider_name).first()
         if not setting or not setting.api_key or not setting.api_key.strip():
             raise HTTPException(
                 status_code=400,
                 detail=f"Provider '{provider_name}' has no API key configured. Please add one in Settings.",
             )
     else:
-        setting = (
-            db.query(models.ProviderSetting)
-            .filter(models.ProviderSetting.is_default == True)
-            .first()
-        )
+        setting = base_query.filter(models.ProviderSetting.is_default == True).first()
         if not setting:
             # Fallback to the first available setting if none is marked default
-            setting = db.query(models.ProviderSetting).first()
+            setting = base_query.first()
 
         if not setting or not setting.api_key or not setting.api_key.strip():
             raise HTTPException(

@@ -9,6 +9,7 @@ import docx
 
 from database import Base, get_db
 import models
+import auth as auth_module
 from main import app
 from services.ai.base import AiProvider
 import services.ai.router as ai_router
@@ -42,15 +43,128 @@ def setup_db():
     Base.metadata.drop_all(bind=test_engine)
 
 
+def _login_client(username: str, password: str) -> TestClient:
+    test_client = TestClient(app)
+    res = test_client.post("/api/auth/login", json={"username": username, "password": password})
+    assert res.status_code == 200, res.text
+    body = res.json()
+    test_client.headers["Authorization"] = f"Bearer {body['access_token']}"
+    test_client.test_username = username
+    return test_client
+
+
 @pytest.fixture
 def client():
-    return TestClient(app)
+    db = TestingSessionLocal()
+    try:
+        auth_module.ensure_bootstrap_admin(db)
+    finally:
+        db.close()
+
+    test_client = _login_client(auth_module.BOOTSTRAP_ADMIN_USERNAME, auth_module.BOOTSTRAP_ADMIN_PASSWORD)
+
+    db = TestingSessionLocal()
+    try:
+        user = db.query(models.User).filter(models.User.username == auth_module.BOOTSTRAP_ADMIN_USERNAME).first()
+        test_client.test_user_id = user.id
+    finally:
+        db.close()
+
+    return test_client
 
 
 def test_root(client):
     response = client.get("/")
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
+
+
+def test_login_requires_correct_credentials():
+    test_client = TestClient(app)
+    db = TestingSessionLocal()
+    try:
+        auth_module.ensure_bootstrap_admin(db)
+    finally:
+        db.close()
+
+    bad_res = test_client.post(
+        "/api/auth/login",
+        json={"username": auth_module.BOOTSTRAP_ADMIN_USERNAME, "password": "wrong-password"},
+    )
+    assert bad_res.status_code == 401
+
+    good_res = test_client.post(
+        "/api/auth/login",
+        json={"username": auth_module.BOOTSTRAP_ADMIN_USERNAME, "password": auth_module.BOOTSTRAP_ADMIN_PASSWORD},
+    )
+    assert good_res.status_code == 200
+    assert good_res.json()["is_admin"] is True
+
+    # Protected routes reject requests with no token, and with a garbage token
+    assert test_client.get("/api/applications").status_code == 401
+    no_auth_client = TestClient(app)
+    no_auth_client.headers["Authorization"] = "Bearer garbage-token"
+    assert no_auth_client.get("/api/applications").status_code == 401
+
+
+def test_admin_can_create_user_and_data_is_isolated(client):
+    # client is logged in as the bootstrap admin
+    create_res = client.post("/api/users", json={"username": "second_user", "password": "secondpassword123"})
+    assert create_res.status_code == 200
+    assert create_res.json()["username"] == "second_user"
+    assert create_res.json()["is_admin"] is False
+
+    # A non-admin cannot create more users
+    second_client = _login_client("second_user", "secondpassword123")
+    forbidden_res = second_client.post("/api/users", json={"username": "third_user", "password": "whatever123"})
+    assert forbidden_res.status_code == 403
+
+    # Admin saves a profile; second user should NOT see it
+    client.post(
+        "/api/profile",
+        json={
+            "full_name": "Admin User",
+            "email": "admin@example.com",
+            "phone": "",
+            "location": "",
+            "summary": "Admin's profile",
+            "skills": ["Python"],
+            "experiences": [],
+            "projects": [],
+            "certifications": [],
+            "education": [],
+        },
+    )
+    second_profile = second_client.get("/api/profile").json()
+    assert second_profile["full_name"] == ""  # second user's own (empty) profile, not the admin's
+
+    # Second user saves their own distinct profile
+    second_client.post(
+        "/api/profile",
+        json={
+            "full_name": "Second User",
+            "email": "second@example.com",
+            "phone": "",
+            "location": "",
+            "summary": "",
+            "skills": [],
+            "experiences": [],
+            "projects": [],
+            "certifications": [],
+            "education": [],
+        },
+    )
+    admin_profile = client.get("/api/profile").json()
+    assert admin_profile["full_name"] == "Admin User"  # unaffected by second user's save
+
+    # Applications created by one user are invisible to (and not fetchable by id by) the other
+    app_res = client.post(
+        "/api/applications",
+        json={"company": "AdminCo", "position": "Role", "job_description": "JD"},
+    )
+    admin_app_id = app_res.json()["id"]
+    assert second_client.get("/api/applications").json() == []
+    assert second_client.get(f"/api/applications/{admin_app_id}").status_code == 404
 
 
 def test_profile_empty_get(client):
@@ -169,7 +283,7 @@ def test_groq_settings_save_and_routing(client):
 
     db = TestingSessionLocal()
     try:
-        resolved = ai_router.get_provider(db)
+        resolved = ai_router.get_provider(db, user_id=client.test_user_id)
         assert isinstance(resolved.provider, GroqProvider)
         assert resolved.provider.model == "openai/gpt-oss-120b"
         assert resolved.provider.api_key == "gsk_mock_test_key_12345"
@@ -179,7 +293,7 @@ def test_groq_settings_save_and_routing(client):
         db.close()
 
 
-def _mock_get_provider(db, provider_override=None):
+def _mock_get_provider(db, user_id=None, provider_override=None):
     return ai_router.ResolvedProvider(
         provider=MockAiProvider(), provider_name="groq", model="llama-3.3-70b-versatile"
     )
@@ -480,7 +594,7 @@ def test_generate_with_no_default_provider_but_override(client, monkeypatch):
 
     captured = {}
 
-    def fake_get_provider(db, provider_override=None):
+    def fake_get_provider(db, user_id=None, provider_override=None):
         captured["override"] = provider_override
         return ai_router.ResolvedProvider(
             provider=MockAiProvider(), provider_name=provider_override or "openai", model="test-model"

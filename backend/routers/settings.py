@@ -6,7 +6,7 @@ import models
 import schemas
 from openai import OpenAI
 from groq import Groq
-from auth import require_app_password
+from auth import get_current_user
 
 DEFAULT_MODELS = {
     "groq": "openai/gpt-oss-120b",
@@ -16,15 +16,16 @@ DEFAULT_MODELS = {
     "deepseek": "deepseek-chat",
 }
 
-router = APIRouter(prefix="/api/settings", tags=["Settings"], dependencies=[Depends(require_app_password)])
+router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
 
 @router.get("", response_model=List[schemas.ProviderSettingSchema])
-def get_settings(db: Session = Depends(get_db)):
-    settings = db.query(models.ProviderSetting).all()
+def get_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    settings = db.query(models.ProviderSetting).filter(models.ProviderSetting.user_id == current_user.id).all()
     if not settings:
         # Provide default Groq setting
         default_setting = models.ProviderSetting(
+            user_id=current_user.id,
             provider="groq",
             api_key="",
             model="openai/gpt-oss-120b",
@@ -42,6 +43,7 @@ def get_available_models(
     provider: str = Query(..., description="AI Provider (groq or openai)"),
     api_key: Optional[str] = Query(None, description="API Key to test, or uses saved key"),
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     provider_name = provider.lower().strip()
     key = api_key.strip() if api_key else ""
@@ -49,7 +51,10 @@ def get_available_models(
     if not key:
         saved = (
             db.query(models.ProviderSetting)
-            .filter(models.ProviderSetting.provider == provider_name)
+            .filter(
+                models.ProviderSetting.user_id == current_user.id,
+                models.ProviderSetting.provider == provider_name,
+            )
             .first()
         )
         if saved and saved.api_key:
@@ -90,22 +95,32 @@ def get_available_models(
 
 
 @router.post("", response_model=schemas.ProviderSettingSchema)
-def save_setting(data: schemas.ProviderSettingCreate, db: Session = Depends(get_db)):
+def save_setting(
+    data: schemas.ProviderSettingCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     provider_name = data.provider.lower().strip()
     default_model = DEFAULT_MODELS.get(provider_name, "gpt-4o-mini")
 
     setting = (
         db.query(models.ProviderSetting)
-        .filter(models.ProviderSetting.provider == provider_name)
+        .filter(
+            models.ProviderSetting.user_id == current_user.id,
+            models.ProviderSetting.provider == provider_name,
+        )
         .first()
     )
 
     if data.is_default:
-        # Unset default on all other provider settings
-        db.query(models.ProviderSetting).update({models.ProviderSetting.is_default: False})
+        # Unset default on all of this user's other provider settings
+        db.query(models.ProviderSetting).filter(models.ProviderSetting.user_id == current_user.id).update(
+            {models.ProviderSetting.is_default: False}
+        )
 
     if not setting:
         setting = models.ProviderSetting(
+            user_id=current_user.id,
             provider=provider_name,
             api_key=data.api_key.strip(),
             model=data.model.strip() or default_model,
@@ -150,6 +165,7 @@ def test_provider_connection(
     provider: str,
     data: Optional[schemas.ProviderTestRequest] = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     provider_name = provider.lower().strip()
 
@@ -161,7 +177,10 @@ def test_provider_connection(
     if not api_key:
         saved = (
             db.query(models.ProviderSetting)
-            .filter(models.ProviderSetting.provider == provider_name)
+            .filter(
+                models.ProviderSetting.user_id == current_user.id,
+                models.ProviderSetting.provider == provider_name,
+            )
             .first()
         )
         if saved and saved.api_key:

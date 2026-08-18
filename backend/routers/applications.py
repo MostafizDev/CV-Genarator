@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
-from auth import require_app_password
+from auth import get_current_user
 
-router = APIRouter(prefix="/api/applications", tags=["Applications"], dependencies=[Depends(require_app_password)])
+router = APIRouter(prefix="/api/applications", tags=["Applications"])
 
 
 def _serialize_application(app: models.Application) -> Dict[str, Any]:
@@ -34,17 +34,36 @@ def _serialize_application(app: models.Application) -> Dict[str, Any]:
     }
 
 
+def _get_owned_application(db: Session, application_id: int, user_id: int) -> models.Application:
+    application = (
+        db.query(models.Application)
+        .filter(models.Application.id == application_id, models.Application.user_id == user_id)
+        .first()
+    )
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    return application
+
+
 @router.get("", response_model=List[schemas.ApplicationListItemSchema])
-def list_applications(db: Session = Depends(get_db)):
+def list_applications(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     applications = (
-        db.query(models.Application).order_by(models.Application.created_at.desc()).all()
+        db.query(models.Application)
+        .filter(models.Application.user_id == current_user.id)
+        .order_by(models.Application.created_at.desc())
+        .all()
     )
     return applications
 
 
 @router.post("", response_model=schemas.ApplicationSchema)
-def create_application(data: schemas.ApplicationCreate, db: Session = Depends(get_db)):
+def create_application(
+    data: schemas.ApplicationCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     application = models.Application(
+        user_id=current_user.id,
         company=data.company,
         position=data.position,
         job_description=data.job_description,
@@ -61,20 +80,23 @@ def create_application(data: schemas.ApplicationCreate, db: Session = Depends(ge
 
 
 @router.get("/{application_id}", response_model=schemas.ApplicationSchema)
-def get_application(application_id: int, db: Session = Depends(get_db)):
-    application = db.query(models.Application).filter(models.Application.id == application_id).first()
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found.")
+def get_application(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    application = _get_owned_application(db, application_id, current_user.id)
     return _serialize_application(application)
 
 
 @router.put("/{application_id}", response_model=schemas.ApplicationSchema)
 def update_application(
-    application_id: int, data: schemas.ApplicationUpdate, db: Session = Depends(get_db)
+    application_id: int,
+    data: schemas.ApplicationUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    application = db.query(models.Application).filter(models.Application.id == application_id).first()
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found.")
+    application = _get_owned_application(db, application_id, current_user.id)
 
     if data.status is not None:
         application.status = data.status
@@ -96,10 +118,12 @@ def update_application(
 
 
 @router.delete("/{application_id}")
-def delete_application(application_id: int, db: Session = Depends(get_db)):
-    application = db.query(models.Application).filter(models.Application.id == application_id).first()
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found.")
+def delete_application(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    application = _get_owned_application(db, application_id, current_user.id)
     db.delete(application)
     db.commit()
     return {"detail": "Application deleted."}

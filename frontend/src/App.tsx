@@ -1,16 +1,17 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
-import { PasswordGate } from './components/PasswordGate';
+import { LoginGate } from './components/LoginGate';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NewApplicationPage } from './pages/NewApplicationPage';
 import { TrackerPage } from './pages/TrackerPage';
 import { ApplicationDetailPage } from './pages/ApplicationDetailPage';
+import { UsersPage } from './pages/UsersPage';
 
 export const App: React.FC = () => {
   return (
-    <PasswordGate>
+    <LoginGate>
       <BrowserRouter>
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
           <Navbar />
@@ -22,12 +23,13 @@ export const App: React.FC = () => {
               <Route path="/tracker" element={<TrackerPage />} />
               <Route path="/tracker/:id" element={<ApplicationDetailPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/users" element={<UsersPage />} />
               <Route path="*" element={<Navigate to="/profile" replace />} />
             </Routes>
           </main>
         </div>
       </BrowserRouter>
-    </PasswordGate>
+    </LoginGate>
   );
 };
 

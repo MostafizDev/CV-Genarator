@@ -5,10 +5,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import models
 import database
-from routers import profile, settings, generate, export, applications, auth
+import migrations
+import auth as auth_module
+from routers import profile, settings, generate, export, applications, auth, users
 
-# Create SQLite tables
+# Create SQLite tables, upgrade any pre-multi-user database, and make sure the
+# master admin account always exists (both are no-ops if already done).
 models.Base.metadata.create_all(bind=database.engine)
+migrations.run_migrations(database.engine)
+_startup_db = database.SessionLocal()
+try:
+    auth_module.ensure_bootstrap_admin(_startup_db)
+finally:
+    _startup_db.close()
 
 app = FastAPI(
     title="CV Generator API",
@@ -38,6 +47,7 @@ app.add_middleware(
 
 # Register API Routers
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(profile.router)
 app.include_router(settings.router)
 app.include_router(generate.router)

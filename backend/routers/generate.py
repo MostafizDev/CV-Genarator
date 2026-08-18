@@ -11,9 +11,9 @@ import services.ai.router as ai_router
 from services.prompts.cv import build_cv_prompt
 from services.prompts.cover_letter import build_cover_letter_prompt
 from services.project_matching import rank_and_highlight_projects
-from auth import require_app_password
+from auth import get_current_user
 
-router = APIRouter(prefix="/api/generate", tags=["Generate"], dependencies=[Depends(require_app_password)])
+router = APIRouter(prefix="/api/generate", tags=["Generate"])
 
 
 def _clean_json_output(text: str) -> str:
@@ -31,6 +31,7 @@ def _clean_json_output(text: str) -> str:
 def generate_cv_and_cover_letter(
     request: schemas.GenerateRequest,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     if not request.job_description.strip():
         raise HTTPException(status_code=400, detail="Job description cannot be empty.")
@@ -40,7 +41,7 @@ def generate_cv_and_cover_letter(
         raise HTTPException(status_code=400, detail="Position title cannot be empty.")
 
     # 1. Load candidate profile
-    profile = db.query(models.Profile).first()
+    profile = db.query(models.Profile).filter(models.Profile.user_id == current_user.id).first()
     if not profile or (not profile.full_name and not profile.experiences and not profile.skills):
         raise HTTPException(
             status_code=400,
@@ -50,7 +51,7 @@ def generate_cv_and_cover_letter(
     profile_data = _serialize_profile(profile)
 
     # 2. Get AI Provider
-    resolved = ai_router.get_provider(db, provider_override=request.provider)
+    resolved = ai_router.get_provider(db, user_id=current_user.id, provider_override=request.provider)
     ai_provider = resolved.provider
 
     # 3. Generate tailored CV
@@ -129,6 +130,7 @@ def generate_cv_and_cover_letter(
 
     # 5. Record this generation in the application tracker
     application = models.Application(
+        user_id=current_user.id,
         company=request.company,
         position=request.position,
         job_description=request.job_description,

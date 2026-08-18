@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, Loader2, AlertCircle } from 'lucide-react';
-import { verifyPassword, getStoredPassword, AUTH_REQUIRED_EVENT } from '../api/client';
+import { Lock, Loader2, AlertCircle, User } from 'lucide-react';
+import { login, verifySession, AUTH_REQUIRED_EVENT } from '../api/client';
 
 type Status = 'checking' | 'authed' | 'locked';
 
-export const PasswordGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [status, setStatus] = useState<Status>('checking');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const ok = await verifyPassword(getStoredPassword());
+      const ok = await verifySession();
       setStatus(ok ? 'authed' : 'locked');
     })();
 
@@ -25,12 +26,12 @@ export const PasswordGate: React.FC<{ children: React.ReactNode }> = ({ children
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const ok = await verifyPassword(password);
-    if (ok) {
+    const result = await login(username.trim(), password);
+    if (result.ok) {
       setStatus('authed');
       setPassword('');
     } else {
-      setError('Incorrect password.');
+      setError(result.message);
     }
     setSubmitting(false);
   };
@@ -55,7 +56,7 @@ export const PasswordGate: React.FC<{ children: React.ReactNode }> = ({ children
               <Lock className="w-6 h-6" />
             </div>
             <h1 className="text-lg font-bold text-slate-900">CV Generator</h1>
-            <p className="text-sm text-slate-500">Enter the app password to continue.</p>
+            <p className="text-sm text-slate-500">Sign in to continue.</p>
           </div>
 
           {error && (
@@ -65,21 +66,37 @@ export const PasswordGate: React.FC<{ children: React.ReactNode }> = ({ children
             </div>
           )}
 
-          <input
-            type="password"
-            autoFocus
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
-          />
+          <div className="relative">
+            <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              autoFocus
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Username"
+              className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+            />
+          </div>
+
+          <div className="relative">
+            <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+            />
+          </div>
 
           <button
             type="submit"
-            disabled={submitting || !password.trim()}
+            disabled={submitting || !username.trim() || !password.trim()}
             className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-sm font-semibold rounded-lg shadow-sm shadow-sky-600/20 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {submitting ? 'Checking...' : 'Unlock'}
+            {submitting ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </div>

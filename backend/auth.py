@@ -1,16 +1,86 @@
 import os
-import secrets
+from datetime import datetime, timedelta, timezone
 
-from fastapi import Header, HTTPException
+import bcrypt
+import jwt
+from fastapi import Depends, Header, HTTPException
+from sqlalchemy.orm import Session
 
-# Single shared password protecting the whole API, set via the APP_PASSWORD env var
-# on deployment. If unset (e.g. local development), auth is disabled entirely -- every
-# request passes through, matching the app's original no-auth local behavior.
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "").strip()
+from database import get_db
+import models
+
+# Sign session tokens with this. MUST be set to a real random value in production
+# (any deployment other than local dev) -- tokens are only as safe as this secret.
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-change-me")
+ALGORITHM = "HS256"
+TOKEN_TTL = timedelta(days=30)
+
+# The master/admin account is seeded on first startup if no users exist yet, from
+# these env vars (falling back to local-dev-only defaults). Only used once -- after
+# the first user exists, these are ignored.
+BOOTSTRAP_ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "mostafizdev").strip()
+BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme").strip()
 
 
-def require_app_password(x_app_password: str = Header(default="")) -> None:
-    if not APP_PASSWORD:
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except ValueError:
+        return False
+
+
+def create_access_token(user: models.User) -> str:
+    payload = {
+        "sub": str(user.id),
+        "username": user.username,
+        "is_admin": user.is_admin,
+        "exp": datetime.now(timezone.utc) + TOKEN_TTL,
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def _decode_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired session. Please log in again.")
+
+
+def get_current_user(
+    authorization: str = Header(default=""), db: Session = Depends(get_db)
+) -> models.User:
+    token = ""
+    if authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+
+    payload = _decode_token(token)
+    user = db.query(models.User).filter(models.User.id == int(payload["sub"])).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User no longer exists.")
+    return user
+
+
+def require_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return current_user
+
+
+def ensure_bootstrap_admin(db: Session) -> None:
+    """Seeds the master admin account on first-ever startup, if no users exist yet."""
+    if db.query(models.User).first():
         return
-    if not secrets.compare_digest(x_app_password or "", APP_PASSWORD):
-        raise HTTPException(status_code=401, detail="Invalid or missing app password.")
+    admin = models.User(
+        username=BOOTSTRAP_ADMIN_USERNAME,
+        password_hash=hash_password(BOOTSTRAP_ADMIN_PASSWORD),
+        is_admin=True,
+    )
+    db.add(admin)
+    db.commit()

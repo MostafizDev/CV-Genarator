@@ -12,9 +12,9 @@ import models
 import schemas
 import services.ai.router as ai_router
 from services.prompts.parse_cv import build_parse_cv_prompt
-from auth import require_app_password
+from auth import get_current_user
 
-router = APIRouter(prefix="/api/profile", tags=["Profile"], dependencies=[Depends(require_app_password)])
+router = APIRouter(prefix="/api/profile", tags=["Profile"])
 
 
 def _as_list(value: Any) -> List[Any]:
@@ -150,8 +150,8 @@ def _extract_text_from_file(filename: str, contents: bytes) -> str:
 
 
 @router.get("", response_model=schemas.ProfileSchema)
-def get_profile(db: Session = Depends(get_db)):
-    profile = db.query(models.Profile).first()
+def get_profile(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    profile = db.query(models.Profile).filter(models.Profile.user_id == current_user.id).first()
     if not profile:
         return schemas.ProfileSchema(
             id=None,
@@ -173,10 +173,14 @@ def get_profile(db: Session = Depends(get_db)):
 
 @router.post("", response_model=schemas.ProfileSchema)
 @router.put("", response_model=schemas.ProfileSchema)
-def save_profile(data: schemas.ProfileSaveRequest, db: Session = Depends(get_db)):
-    profile = db.query(models.Profile).first()
+def save_profile(
+    data: schemas.ProfileSaveRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    profile = db.query(models.Profile).filter(models.Profile.user_id == current_user.id).first()
     if not profile:
-        profile = models.Profile()
+        profile = models.Profile(user_id=current_user.id)
         db.add(profile)
         db.flush()
 
@@ -246,7 +250,7 @@ def save_profile(data: schemas.ProfileSaveRequest, db: Session = Depends(get_db)
 
 
 @router.post("/upload-cv", response_model=schemas.UploadCvResponse)
-async def upload_cv(file: UploadFile = File(...)):
+async def upload_cv(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
     filename = file.filename or ""
     contents = await file.read()
     extracted_text = _extract_text_from_file(filename, contents)
@@ -257,6 +261,7 @@ async def upload_cv(file: UploadFile = File(...)):
 async def parse_cv_with_ai(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     filename = file.filename or ""
     contents = await file.read()
@@ -269,7 +274,7 @@ async def parse_cv_with_ai(
         )
 
     # Load AI Provider
-    resolved = ai_router.get_provider(db)
+    resolved = ai_router.get_provider(db, user_id=current_user.id)
     ai_provider = resolved.provider
 
     # Build parse prompt

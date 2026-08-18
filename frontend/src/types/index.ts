@@ -139,3 +139,16 @@ export interface ProviderTestResult {
   success: boolean;
   message: string;
 }
+
+export interface CurrentUser {
+  id: number;
+  username: string;
+  is_admin: boolean;
+}
+
+export interface AppUser {
+  id: number;
+  username: string;
+  is_admin: boolean;
+  created_at: string;
+}

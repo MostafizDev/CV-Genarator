@@ -1,14 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
-import { User, Sparkles, Settings, FileText, ClipboardList, Cpu, LogOut } from 'lucide-react';
-import { getSettings, getStoredPassword, clearStoredPassword, AUTH_REQUIRED_EVENT } from '../api/client';
-
-const NAV_LINKS = [
-  { to: '/profile', label: 'Profile', icon: User },
-  { to: '/new-application', label: 'New Application', icon: Sparkles },
-  { to: '/tracker', label: 'Tracker', icon: ClipboardList },
-  { to: '/settings', label: 'Settings', icon: Settings },
-];
+import { User, Sparkles, Settings, FileText, ClipboardList, Cpu, LogOut, Users } from 'lucide-react';
+import { getSettings, getStoredSession, clearStoredSession, AUTH_REQUIRED_EVENT } from '../api/client';
 
 const PROVIDER_LABELS: Record<string, string> = {
   groq: 'Groq',
@@ -21,10 +14,18 @@ const PROVIDER_LABELS: Record<string, string> = {
 export const Navbar: React.FC = () => {
   const location = useLocation();
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
-  const hasPassword = !!getStoredPassword();
+  const session = getStoredSession();
 
-  const handleLock = () => {
-    clearStoredPassword();
+  const navLinks = [
+    { to: '/profile', label: 'Profile', icon: User },
+    { to: '/new-application', label: 'New Application', icon: Sparkles },
+    { to: '/tracker', label: 'Tracker', icon: ClipboardList },
+    { to: '/settings', label: 'Settings', icon: Settings },
+    ...(session?.is_admin ? [{ to: '/users', label: 'Users', icon: Users }] : []),
+  ];
+
+  const handleLogout = () => {
+    clearStoredSession();
     window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
   };
 
@@ -52,9 +53,6 @@ export const Navbar: React.FC = () => {
               <span className="text-lg font-bold bg-gradient-to-r from-slate-900 via-sky-900 to-indigo-950 bg-clip-text text-transparent">
                 CV Generator
               </span>
-              <span className="ml-2 text-xs px-2 py-0.5 bg-sky-100 text-sky-700 font-medium rounded-full">
-                Phase 3
-              </span>
               {activeProvider && (
                 <Link
                   to="/settings"
@@ -69,7 +67,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           <nav className="flex items-center space-x-1 sm:space-x-2">
-            {NAV_LINKS.map(({ to, label, icon: Icon }) => (
+            {navLinks.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -85,15 +83,18 @@ export const Navbar: React.FC = () => {
                 <span>{label}</span>
               </NavLink>
             ))}
-            {hasPassword && (
-              <button
-                type="button"
-                onClick={handleLock}
-                title="Lock app"
-                className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+            {session && (
+              <div className="flex items-center space-x-1.5 pl-2 ml-1 border-l border-slate-200">
+                <span className="text-xs font-medium text-slate-500 hidden sm:inline">{session.username}</span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Log out"
+                  className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             )}
           </nav>
         </div>

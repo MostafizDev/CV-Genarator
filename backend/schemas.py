@@ -182,3 +182,36 @@ class ProviderTestRequest(BaseModel):
 class ProviderTestResponse(BaseModel):
     success: bool
     message: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    username: str
+    is_admin: bool
+
+
+class CurrentUserResponse(BaseModel):
+    id: int
+    username: str
+    is_admin: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+
+class UserSchema(BaseModel):
+    id: int
+    username: str
+    is_admin: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

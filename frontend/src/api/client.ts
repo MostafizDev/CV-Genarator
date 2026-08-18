@@ -7,37 +7,51 @@ import type {
   Application,
   ApplicationUpdate,
   ProviderTestResult,
+  CurrentUser,
+  AppUser,
 } from '../types';
 
 // In dev, Vite proxies "/api" to localhost:8000 (see vite.config.ts). In a production
 // build (e.g. served from GitHub Pages, separate from the backend), set VITE_API_BASE
 // to the deployed backend's full URL, e.g. "https://your-backend.onrender.com/api".
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
-const AUTH_STORAGE_KEY = 'cv_generator_app_password';
+const TOKEN_STORAGE_KEY = 'cv_generator_session';
 
 export const AUTH_REQUIRED_EVENT = 'app-auth-required';
 
-export function getStoredPassword(): string {
-  return localStorage.getItem(AUTH_STORAGE_KEY) || '';
+interface StoredSession {
+  token: string;
+  username: string;
+  is_admin: boolean;
 }
 
-export function setStoredPassword(password: string) {
-  localStorage.setItem(AUTH_STORAGE_KEY, password);
+export function getStoredSession(): StoredSession | null {
+  const raw = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
-export function clearStoredPassword() {
-  localStorage.removeItem(AUTH_STORAGE_KEY);
+function setStoredSession(session: StoredSession) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(session));
+}
+
+export function clearStoredSession() {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
 async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers || {});
-  const password = getStoredPassword();
-  if (password) headers.set('X-App-Password', password);
+  const session = getStoredSession();
+  if (session?.token) headers.set('Authorization', `Bearer ${session.token}`);
 
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (response.status === 401) {
-    clearStoredPassword();
+    clearStoredSession();
     window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
   }
 
@@ -53,16 +67,60 @@ function jsonHeaders(): HeadersInit {
   return { 'Content-Type': 'application/json' };
 }
 
-export async function verifyPassword(password: string): Promise<boolean> {
-  const response = await fetch(`${API_BASE}/auth/check`, {
+export async function login(username: string, password: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
-    headers: password ? { 'X-App-Password': password } : {},
+    headers: jsonHeaders(),
+    body: JSON.stringify({ username, password }),
   });
-  if (response.ok) {
-    setStoredPassword(password);
-    return true;
+  if (!response.ok) {
+    return { ok: false, message: await parseErrorDetail(response, 'Login failed.') };
   }
-  return false;
+  const body = await response.json();
+  setStoredSession({ token: body.access_token, username: body.username, is_admin: body.is_admin });
+  return { ok: true };
+}
+
+export async function verifySession(): Promise<boolean> {
+  const session = getStoredSession();
+  if (!session?.token) return false;
+  const response = await apiFetch('/auth/me');
+  return response.ok;
+}
+
+export async function getCurrentUser(): Promise<CurrentUser> {
+  const response = await apiFetch('/auth/me');
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Not authenticated'));
+  }
+  return response.json();
+}
+
+export async function listUsers(): Promise<AppUser[]> {
+  const response = await apiFetch('/users');
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to load users'));
+  }
+  return response.json();
+}
+
+export async function createUser(username: string, password: string): Promise<AppUser> {
+  const response = await apiFetch('/users', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ username, password }),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to create user'));
+  }
+  return response.json();
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  const response = await apiFetch(`/users/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to delete user'));
+  }
 }
 
 export async function getProfile(): Promise<Profile> {
