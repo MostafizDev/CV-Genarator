@@ -9,7 +9,10 @@ import type {
   ProviderTestResult,
 } from '../types';
 
-const API_BASE = '/api';
+// In dev, Vite proxies "/api" to localhost:8000 (see vite.config.ts). In a production
+// build (e.g. served from GitHub Pages, separate from the backend), set VITE_API_BASE
+// to the deployed backend's full URL, e.g. "https://your-backend.onrender.com/api".
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 const AUTH_STORAGE_KEY = 'cv_generator_app_password';
 
 export const AUTH_REQUIRED_EVENT = 'app-auth-required';
