@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
 import schemas
 from services.pdf.templates import build_cv_html, build_cover_letter_html
 from services.pdf.render import render_pdf
+from auth import require_app_password
 
-router = APIRouter(prefix="/api", tags=["Export"])
+router = APIRouter(prefix="/api", tags=["Export"], dependencies=[Depends(require_app_password)])
 
 
 @router.post("/export-pdf")

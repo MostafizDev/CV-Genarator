@@ -12,8 +12,9 @@ import models
 import schemas
 import services.ai.router as ai_router
 from services.prompts.parse_cv import build_parse_cv_prompt
+from auth import require_app_password
 
-router = APIRouter(prefix="/api/profile", tags=["Profile"])
+router = APIRouter(prefix="/api/profile", tags=["Profile"], dependencies=[Depends(require_app_password)])
 
 
 def _as_list(value: Any) -> List[Any]:

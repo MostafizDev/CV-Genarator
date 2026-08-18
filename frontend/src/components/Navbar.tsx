@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
-import { User, Sparkles, Settings, FileText, ClipboardList, Cpu } from 'lucide-react';
-import { getSettings } from '../api/client';
+import { User, Sparkles, Settings, FileText, ClipboardList, Cpu, LogOut } from 'lucide-react';
+import { getSettings, getStoredPassword, clearStoredPassword, AUTH_REQUIRED_EVENT } from '../api/client';
 
 const NAV_LINKS = [
   { to: '/profile', label: 'Profile', icon: User },
@@ -21,6 +21,12 @@ const PROVIDER_LABELS: Record<string, string> = {
 export const Navbar: React.FC = () => {
   const location = useLocation();
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
+  const hasPassword = !!getStoredPassword();
+
+  const handleLock = () => {
+    clearStoredPassword();
+    window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
+  };
 
   useEffect(() => {
     (async () => {
@@ -79,6 +85,16 @@ export const Navbar: React.FC = () => {
                 <span>{label}</span>
               </NavLink>
             ))}
+            {hasPassword && (
+              <button
+                type="button"
+                onClick={handleLock}
+                title="Lock app"
+                className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </nav>
         </div>
       </div>

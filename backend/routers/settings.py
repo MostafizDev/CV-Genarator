@@ -6,6 +6,7 @@ import models
 import schemas
 from openai import OpenAI
 from groq import Groq
+from auth import require_app_password
 
 DEFAULT_MODELS = {
     "groq": "openai/gpt-oss-120b",
@@ -15,7 +16,7 @@ DEFAULT_MODELS = {
     "deepseek": "deepseek-chat",
 }
 
-router = APIRouter(prefix="/api/settings", tags=["Settings"])
+router = APIRouter(prefix="/api/settings", tags=["Settings"], dependencies=[Depends(require_app_password)])
 
 
 @router.get("", response_model=List[schemas.ProviderSettingSchema])

@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
+from auth import require_app_password
 
-router = APIRouter(prefix="/api/applications", tags=["Applications"])
+router = APIRouter(prefix="/api/applications", tags=["Applications"], dependencies=[Depends(require_app_password)])
 
 
 def _serialize_application(app: models.Application) -> Dict[str, Any]:

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import models
 import database
-from routers import profile, settings, generate, export, applications
+from routers import profile, settings, generate, export, applications, auth
 
 # Create SQLite tables
 models.Base.metadata.create_all(bind=database.engine)
@@ -31,6 +31,7 @@ app.add_middleware(
 )
 
 # Register API Routers
+app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(settings.router)
 app.include_router(generate.router)

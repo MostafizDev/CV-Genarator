@@ -11,8 +11,9 @@ import services.ai.router as ai_router
 from services.prompts.cv import build_cv_prompt
 from services.prompts.cover_letter import build_cover_letter_prompt
 from services.project_matching import rank_and_highlight_projects
+from auth import require_app_password
 
-router = APIRouter(prefix="/api/generate", tags=["Generate"])
+router = APIRouter(prefix="/api/generate", tags=["Generate"], dependencies=[Depends(require_app_password)])
 
 
 def _clean_json_output(text: str) -> str:
