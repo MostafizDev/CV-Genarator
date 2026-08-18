@@ -1,0 +1,24 @@
+# Secrets / local data -- provider API keys are stored in this SQLite DB, never commit it
+backend/app.db
+backend/test_app.db
+*.db
+.env
+.env.*
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+*.pyc
+
+# Node (frontend has its own .gitignore too, this is belt-and-suspenders)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
