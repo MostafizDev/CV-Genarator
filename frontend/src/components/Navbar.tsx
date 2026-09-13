@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { signOut } from 'firebase/auth';
 import { NavLink, Link, useLocation } from 'react-router-dom';
-import { User, Sparkles, Settings, FileText, ClipboardList, Cpu, LogOut, Users } from 'lucide-react';
+import { User, Sparkles, Settings, FileText, ClipboardList, Cpu, LogOut, LayoutTemplate } from 'lucide-react';
+import { auth } from '../firebase';
 import { getSettings, getStoredSession, clearStoredSession, AUTH_REQUIRED_EVENT } from '../api/client';
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -20,11 +22,12 @@ export const Navbar: React.FC = () => {
     { to: '/profile', label: 'Profile', icon: User },
     { to: '/new-application', label: 'New Application', icon: Sparkles },
     { to: '/tracker', label: 'Tracker', icon: ClipboardList },
+    { to: '/templates', label: 'Templates', icon: LayoutTemplate },
     { to: '/settings', label: 'Settings', icon: Settings },
-    ...(session?.is_admin ? [{ to: '/users', label: 'Users', icon: Users }] : []),
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
     clearStoredSession();
     window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
   };
@@ -85,7 +88,9 @@ export const Navbar: React.FC = () => {
             ))}
             {session && (
               <div className="flex items-center space-x-1.5 pl-2 ml-1 border-l border-slate-200">
-                <span className="text-xs font-medium text-slate-500 hidden sm:inline">{session.username}</span>
+                <span className="text-xs font-medium text-slate-500 hidden sm:inline">
+                  {session.display_name || session.email}
+                </span>
                 <button
                   type="button"
                   onClick={handleLogout}

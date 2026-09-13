@@ -1,29 +1,37 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+from sqlalchemy.orm import Session
 
+import models
 import schemas
-from services.pdf.templates import build_cv_html, build_cover_letter_html
-from services.pdf.render import render_pdf
-from auth import get_current_user
+from database import get_db
+from services.pdf.render import render_by_template
+from core.firebase_auth import get_current_user
 
-router = APIRouter(prefix="/api", tags=["Export"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/api", tags=["Export"])
 
 
 @router.post("/export-pdf")
-def export_pdf(request: schemas.ExportPdfRequest):
+def export_pdf(
+    request: schemas.ExportPdfRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     if request.type == "cv":
         if not isinstance(request.content, dict):
             raise HTTPException(status_code=400, detail="CV content must be a JSON object.")
-        html = build_cv_html(request.content)
         filename = "cv.pdf"
     else:
         if not isinstance(request.content, str):
             raise HTTPException(status_code=400, detail="Cover letter content must be plain text.")
-        html = build_cover_letter_html(request.content)
         filename = "cover_letter.pdf"
 
     try:
-        pdf_bytes = render_pdf(html)
+        pdf_bytes = render_by_template(
+            db, request.template_id, request.type, current_user.id, request.content
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to render PDF: {str(e)}")
 

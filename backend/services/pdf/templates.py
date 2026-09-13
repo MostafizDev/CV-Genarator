@@ -1,6 +1,21 @@
-import html as html_lib
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
+
+from jinja2 import Environment
+from markupsafe import Markup, escape
+
+# Shared environment for rendering EVERY template -- built-in and user-created custom
+# ones alike (see routers/templates.py for creation/validation and services/pdf/render.py
+# for how a template_id resolves to HTML). Built-ins are just Template rows nobody but
+# this codebase can edit or delete; there's no separate "native" rendering path.
+jinja_env = Environment(autoescape=True)
+
+# The only top-level variable each template kind is allowed to reference -- enforced at
+# creation/preview time in routers/templates.py.
+ALLOWED_TEMPLATE_VARS = {
+    "cv": {"cv"},
+    "cover_letter": {"text"},
+}
 
 # Decorative pictographs/icons that sometimes end up in contact fields (e.g. copied from a
 # resume that used "📞 555-1234"). ATS parsers can misread these as garbled characters, so
@@ -11,12 +26,12 @@ _ICON_PATTERN = re.compile(
 )
 
 
-def _strip_icons(value: str) -> str:
-    return _ICON_PATTERN.sub("", value).strip()
+def _strip_icons(value: Any) -> str:
+    return _ICON_PATTERN.sub("", str(value or "")).strip()
 
 
-def _normalize_url(value: str) -> str:
-    value = value.strip()
+def _normalize_url(value: Any) -> str:
+    value = str(value or "").strip()
     if not value:
         return value
     if not re.match(r"^https?://", value, flags=re.IGNORECASE):
@@ -24,238 +39,318 @@ def _normalize_url(value: str) -> str:
     return value
 
 
-CV_STYLE = """
+def _contact_line(cv: Dict[str, Any]) -> Markup:
+    """Joins a CV's contact fields into one "a | b | c" line, with linkedin/portfolio_url
+    rendered as clickable links (plain text follows the URL so ATS text-extraction still
+    sees it even if the anchor href gets dropped during parsing). Registered as the
+    `contact_line` filter so every template can just write `{{ cv | contact_line }}`.
+    """
+    parts = []
+    for key in ("email", "phone", "location"):
+        value = _strip_icons(cv.get(key))
+        if value:
+            parts.append(str(escape(value)))
+    for key in ("linkedin", "portfolio_url"):
+        value = _strip_icons(cv.get(key))
+        if value:
+            url = _normalize_url(value)
+            parts.append(f'<a href="{escape(url)}">{escape(value)}</a>')
+    return Markup(" | ".join(parts))
+
+
+jinja_env.filters["strip_icons"] = _strip_icons
+jinja_env.filters["normalize_url"] = _normalize_url
+jinja_env.filters["contact_line"] = _contact_line
+
+
+# ---------------------------------------------------------------------------
+# Built-in templates. Each is a complete, self-contained Jinja2 source string --
+# exactly what gets seeded into the templates table (see migrations.py) and rendered
+# the same way a user's own custom template would be (services/pdf/render.py).
+# "Default" is seeded first for each kind, so it's the one used when no template_id
+# is specified (see render.py's _resolve_template).
+# ---------------------------------------------------------------------------
+
+DEFAULT_CV_TEMPLATE_HTML = """<!doctype html><html><head><meta charset="utf-8">
 <style>
   @page { size: Letter; margin: 0.75in; }
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 10.5pt;
-    line-height: 1.45;
-    color: #111111;
-    margin: 0;
-  }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #111111; margin: 0; }
   h1 { font-size: 18pt; margin: 0 0 4px 0; font-weight: bold; }
   .contact { font-size: 9.5pt; color: #333333; margin-bottom: 14px; }
-  h2 {
-    font-size: 11pt;
-    border-bottom: 1px solid #333333;
-    padding-bottom: 2px;
-    margin: 16px 0 8px 0;
-    break-after: avoid;
-  }
+  h2 { font-size: 11pt; border-bottom: 1px solid #333333; padding-bottom: 2px; margin: 16px 0 8px 0; }
   h2:first-of-type { margin-top: 0; }
   p { margin: 0 0 6px 0; }
   ul { margin: 4px 0 10px 0; padding-left: 18px; list-style-type: disc; }
   li { margin-bottom: 3px; }
-  .entry { margin-bottom: 10px; break-inside: avoid; }
+  .entry { margin-bottom: 10px; }
   .entry-header { font-weight: bold; }
   .entry-sub { font-size: 9.5pt; color: #333333; margin-bottom: 2px; }
   a { color: #111111; text-decoration: none; }
 </style>
-"""
+</head><body>
+{% if cv.full_name or cv.email or cv.phone or cv.location %}
+<div>
+  {% if cv.full_name %}<h1>{{ cv.full_name }}</h1>{% endif %}
+  <div class="contact">{{ cv | contact_line }}</div>
+</div>
+{% endif %}
+{% if cv.summary %}<h2>SUMMARY</h2><p>{{ cv.summary }}</p>{% endif %}
+{% if cv.skills %}<h2>SKILLS</h2><p>{{ cv.skills|join(' | ') }}</p>{% endif %}
+{% if cv.experience %}
+<h2>EXPERIENCE</h2>
+{% for exp in cv.experience %}
+<div class="entry">
+  <div class="entry-header">{{ exp.title }}{% if exp.company %} - {{ exp.company }}{% endif %}</div>
+  <div class="entry-sub">{% if exp.start_date or exp.end_date %}{{ exp.start_date }} - {{ exp.end_date or "Present" }}{% endif %}</div>
+  {% if exp.bullet_points %}<ul>{% for b in exp.bullet_points %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% if cv.projects %}
+<h2>PROJECTS</h2>
+{% for proj in cv.projects %}
+<div class="entry">
+  <div class="entry-header">{{ proj.name }}</div>
+  {% if proj.tech_stack %}<div class="entry-sub">{{ proj.tech_stack }}</div>{% endif %}
+  {% if proj.description %}<p>{{ proj.description }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% if cv.certifications %}
+<h2>CERTIFICATIONS</h2>
+{% for cert in cv.certifications %}
+<div class="entry">
+  <div class="entry-header">{{ cert.name }}</div>
+  <div class="entry-sub">{{ [cert.issuer, cert.date_earned]|select|join(' | ') }}</div>
+</div>
+{% endfor %}
+{% endif %}
+{% if cv.education %}
+<h2>EDUCATION</h2>
+{% for edu in cv.education %}
+<div class="entry">
+  <div class="entry-header">{% if edu.degree and edu.field %}{{ edu.degree }} in {{ edu.field }}{% else %}{{ edu.degree or edu.field }}{% endif %}</div>
+  <div class="entry-sub">{{ [edu.institution, edu.graduation_year]|select|join(' | ') }}</div>
+</div>
+{% endfor %}
+{% endif %}
+{% if cv.languages %}<h2>LANGUAGES</h2><p>{{ cv.languages|join(' | ') }}</p>{% endif %}
+</body></html>"""
 
-COVER_LETTER_STYLE = """
+
+NAVY_SIDEBAR_CV_TEMPLATE_HTML = """<!doctype html><html><head><meta charset="utf-8">
+<style>
+  @page { size: Letter; margin: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10pt; color: #1f2937; margin: 0; }
+  .page { display: flex; min-height: 100%; }
+  .sidebar { background: #1e3a5f; color: #ffffff; width: 32%; padding: 28px 20px; }
+  .main { width: 68%; padding: 28px 24px; }
+  .sidebar h1 { font-size: 16pt; margin: 0 0 2px 0; line-height: 1.25; }
+  .sidebar .role { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5px; color: #a9c4e0; margin-bottom: 20px; }
+  .sidebar h3 { font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.5px; color: #a9c4e0; border-bottom: 1px solid rgba(255,255,255,0.25); padding-bottom: 4px; margin: 18px 0 8px 0; }
+  .sidebar h3:first-of-type { margin-top: 0; }
+  .sidebar ul { list-style: none; margin: 0; padding: 0; }
+  .sidebar li { margin-bottom: 6px; font-size: 9.5pt; }
+  .main h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: 0.5px; color: #1e3a5f; border-bottom: 1.5px solid #1e3a5f; padding-bottom: 3px; margin: 18px 0 8px 0; }
+  .main h2:first-of-type { margin-top: 0; }
+  .main p { margin: 0 0 6px 0; line-height: 1.5; }
+  .entry { margin-bottom: 12px; }
+  .entry-header { font-weight: 700; }
+  .entry-sub { font-size: 9pt; color: #4b5563; margin-bottom: 3px; }
+  .main ul { margin: 4px 0 8px 0; padding-left: 16px; }
+  .main li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="sidebar">
+    <h1>{{ cv.full_name }}</h1>
+    {% if cv.title %}<div class="role">{{ cv.title }}</div>{% endif %}
+    <h3>Contact</h3>
+    <ul>
+      {% if cv.phone %}<li>{{ cv.phone|strip_icons }}</li>{% endif %}
+      {% if cv.email %}<li>{{ cv.email|strip_icons }}</li>{% endif %}
+      {% if cv.location %}<li>{{ cv.location|strip_icons }}</li>{% endif %}
+    </ul>
+    {% if cv.skills %}
+    <h3>Skills</h3>
+    <ul>{% for s in cv.skills %}<li>{{ s }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if cv.languages %}
+    <h3>Languages</h3>
+    <ul>{% for l in cv.languages %}<li>{{ l }}</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+  <div class="main">
+    {% if cv.summary %}<h2>Professional Summary</h2><p>{{ cv.summary }}</p>{% endif %}
+    {% if cv.experience %}
+    <h2>Experience</h2>
+    {% for exp in cv.experience %}
+    <div class="entry">
+      <div class="entry-header">{{ exp.title }}</div>
+      <div class="entry-sub">{{ exp.company }}{% if exp.start_date or exp.end_date %} &middot; {{ exp.start_date }} - {{ exp.end_date or "Present" }}{% endif %}</div>
+      {% if exp.bullet_points %}<ul>{% for b in exp.bullet_points %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if cv.education %}
+    <h2>Education</h2>
+    {% for edu in cv.education %}
+    <div class="entry">
+      <div class="entry-header">{% if edu.degree and edu.field %}{{ edu.degree }} in {{ edu.field }}{% else %}{{ edu.degree or edu.field }}{% endif %}</div>
+      <div class="entry-sub">{{ [edu.institution, edu.graduation_year]|select|join(' &middot; ') }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if cv.certifications %}
+    <h2>Certifications</h2>
+    {% for cert in cv.certifications %}
+    <div class="entry">
+      <div class="entry-header">{{ cert.name }}</div>
+      <div class="entry-sub">{{ [cert.issuer, cert.date_earned]|select|join(' &middot; ') }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+</body></html>"""
+
+
+TEAL_HEADER_CV_TEMPLATE_HTML = """<!doctype html><html><head><meta charset="utf-8">
+<style>
+  @page { size: Letter; margin: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10pt; color: #1f2937; margin: 0; }
+  .header { background: #1d6f79; color: #fff; padding: 26px 32px; text-align: center; }
+  .header h1 { margin: 0; font-size: 20pt; letter-spacing: 1px; }
+  .header .role { margin-top: 4px; font-size: 10pt; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.9; }
+  .body { display: flex; padding: 24px 32px; }
+  .col-main { width: 66%; padding-right: 24px; }
+  .col-side { width: 34%; border-left: 1px solid #e5e7eb; padding-left: 20px; }
+  h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: 0.5px; color: #1d6f79; margin: 16px 0 8px 0; }
+  h2:first-of-type { margin-top: 0; }
+  .entry { margin-bottom: 12px; }
+  .entry-header { font-weight: 700; }
+  .entry-sub { font-size: 9pt; color: #6b7280; margin-bottom: 3px; }
+  ul { margin: 4px 0 8px 0; padding-left: 16px; }
+  li { margin-bottom: 3px; }
+  .col-side ul { list-style: none; padding: 0; }
+  .col-side li { margin-bottom: 6px; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>{{ cv.full_name }}</h1>
+  {% if cv.title %}<div class="role">{{ cv.title }}</div>{% endif %}
+</div>
+<div class="body">
+  <div class="col-main">
+    {% if cv.summary %}<h2>Professional Summary</h2><p>{{ cv.summary }}</p>{% endif %}
+    {% if cv.experience %}
+    <h2>Experience</h2>
+    {% for exp in cv.experience %}
+    <div class="entry">
+      <div class="entry-header">{{ exp.title }}</div>
+      <div class="entry-sub">{{ exp.company }}{% if exp.start_date or exp.end_date %} | {{ exp.start_date }} - {{ exp.end_date or "Present" }}{% endif %}</div>
+      {% if exp.bullet_points %}<ul>{% for b in exp.bullet_points %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+  <div class="col-side">
+    <h2>Contact</h2>
+    <ul>
+      {% if cv.phone %}<li>{{ cv.phone|strip_icons }}</li>{% endif %}
+      {% if cv.email %}<li>{{ cv.email|strip_icons }}</li>{% endif %}
+      {% if cv.location %}<li>{{ cv.location|strip_icons }}</li>{% endif %}
+    </ul>
+    {% if cv.skills %}<h2>Skills</h2><ul>{% for s in cv.skills %}<li>{{ s }}</li>{% endfor %}</ul>{% endif %}
+    {% if cv.education %}
+    <h2>Education</h2>
+    {% for edu in cv.education %}
+    <div class="entry">
+      <div class="entry-header">{% if edu.degree and edu.field %}{{ edu.degree }} in {{ edu.field }}{% else %}{{ edu.degree or edu.field }}{% endif %}</div>
+      <div class="entry-sub">{{ [edu.institution, edu.graduation_year]|select|join(' | ') }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if cv.languages %}<h2>Languages</h2><ul>{% for l in cv.languages %}<li>{{ l }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+</div>
+</body></html>"""
+
+
+MINIMALIST_CV_TEMPLATE_HTML = """<!doctype html><html><head><meta charset="utf-8">
+<style>
+  @page { size: Letter; margin: 0.75in; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10.5pt; color: #1f2937; margin: 0; }
+  h1 { font-size: 20pt; margin: 0 0 2px 0; color: #111827; }
+  .role { color: #2563eb; font-weight: 600; margin-bottom: 10px; }
+  .contact { font-size: 9.5pt; color: #4b5563; margin-bottom: 16px; }
+  h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: 0.5px; color: #111827; margin: 18px 0 8px 0; padding-bottom: 4px; border-bottom: 2px solid #e5e7eb; }
+  h2:first-of-type { margin-top: 0; }
+  .skills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .skill-pill { background: #eff6ff; color: #1d4ed8; font-size: 9pt; padding: 3px 10px; border-radius: 999px; }
+  .entry { margin-bottom: 12px; }
+  .entry-header { font-weight: 700; }
+  .entry-sub { color: #2563eb; font-size: 9.5pt; margin-bottom: 3px; }
+  ul { margin: 4px 0 8px 0; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+<h1>{{ cv.full_name }}</h1>
+{% if cv.title %}<div class="role">{{ cv.title }}</div>{% endif %}
+<div class="contact">{{ cv | contact_line }}</div>
+{% if cv.summary %}<h2>Professional Summary</h2><p>{{ cv.summary }}</p>{% endif %}
+{% if cv.skills %}<h2>Skills</h2><div class="skills">{% for s in cv.skills %}<span class="skill-pill">{{ s }}</span>{% endfor %}</div>{% endif %}
+{% if cv.experience %}
+<h2>Experience</h2>
+{% for exp in cv.experience %}
+<div class="entry">
+  <div class="entry-header">{{ exp.title }}{% if exp.company %}, {{ exp.company }}{% endif %}</div>
+  <div class="entry-sub">{% if exp.start_date or exp.end_date %}{{ exp.start_date }} - {{ exp.end_date or "Present" }}{% endif %}</div>
+  {% if exp.bullet_points %}<ul>{% for b in exp.bullet_points %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% if cv.education %}
+<h2>Education</h2>
+{% for edu in cv.education %}
+<div class="entry">
+  <div class="entry-header">{% if edu.degree and edu.field %}{{ edu.degree }} in {{ edu.field }}{% else %}{{ edu.degree or edu.field }}{% endif %}</div>
+  <div class="entry-sub">{{ [edu.institution, edu.graduation_year]|select|join(' | ') }}</div>
+</div>
+{% endfor %}
+{% endif %}
+{% if cv.certifications %}
+<h2>Certifications</h2>
+{% for cert in cv.certifications %}
+<div class="entry">
+  <div class="entry-header">{{ cert.name }}</div>
+  <div class="entry-sub">{{ [cert.issuer, cert.date_earned]|select|join(' | ') }}</div>
+</div>
+{% endfor %}
+{% endif %}
+</body></html>"""
+
+
+DEFAULT_COVER_LETTER_TEMPLATE_HTML = """<!doctype html><html><head><meta charset="utf-8">
 <style>
   @page { size: Letter; margin: 1in; }
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 11pt;
-    line-height: 1.6;
-    color: #111111;
-  }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.6; color: #111111; }
   .letter { white-space: pre-wrap; }
 </style>
-"""
+</head><body><div class="letter">{{ text }}</div></body></html>"""
 
 
-def _esc(value: Any) -> str:
-    return html_lib.escape(str(value)) if value not in (None, "") else ""
-
-
-def _format_date_range(start: Optional[str], end: Optional[str]) -> str:
-    start = (start or "").strip()
-    end = (end or "").strip()
-    if not start and not end:
-        return ""
-    if not end:
-        end = "Present"
-    if not start:
-        return _esc(end)
-    return f"{_esc(start)} - {_esc(end)}"
-
-
-def _render_entries(entries: List[Dict[str, Any]]) -> str:
-    return "".join(entries)
-
-
-def build_cv_html(cv: Dict[str, Any]) -> str:
-    """Builds ATS-safe, single-column HTML for a structured CV JSON object."""
-    sections: List[str] = []
-
-    full_name = cv.get("full_name") or cv.get("name") or ""
-
-    plain_contact_bits = [
-        _strip_icons(str(cv.get("email") or "")),
-        _strip_icons(str(cv.get("phone") or "")),
-        _strip_icons(str(cv.get("location") or "")),
-    ]
-    contact_parts = [_esc(b) for b in plain_contact_bits if b]
-
-    for link_value in (cv.get("linkedin"), cv.get("portfolio_url")):
-        link_value = _strip_icons(str(link_value or ""))
-        if link_value:
-            url = _normalize_url(link_value)
-            # Plain text follows the link so ATS text-extraction still sees the readable
-            # URL even if the anchor href itself gets dropped during parsing.
-            contact_parts.append(f'<a href="{_esc(url)}">{_esc(link_value)}</a>')
-
-    contact_line = " | ".join(contact_parts)
-
-    if full_name or contact_line:
-        header = "<div>"
-        if full_name:
-            header += f"<h1>{_esc(full_name)}</h1>"
-        if contact_line:
-            header += f'<div class="contact">{contact_line}</div>'
-        header += "</div>"
-        sections.append(header)
-
-    summary = cv.get("summary")
-    if summary:
-        sections.append(f"<h2>SUMMARY</h2><p>{_esc(summary)}</p>")
-
-    skills = cv.get("skills") or []
-    if skills:
-        skills_line = " | ".join(_esc(s) for s in skills if s)
-        sections.append(f"<h2>SKILLS</h2><p>{skills_line}</p>")
-
-    experience = cv.get("experience") or cv.get("experiences") or []
-    if experience:
-        items = []
-        for exp in experience:
-            title = _esc(exp.get("title"))
-            company = _esc(exp.get("company"))
-            location = _esc(exp.get("location"))
-            date_range = _format_date_range(exp.get("start_date"), exp.get("end_date"))
-            bullets = exp.get("bullet_points") or []
-            bullet_html = "".join(f"<li>{_esc(b)}</li>" for b in bullets if b)
-
-            header_line = title
-            if company:
-                header_line = f"{title} - {company}" if title else company
-
-            sub_bits = [b for b in [location, date_range] if b]
-            sub_line = " | ".join(sub_bits)
-
-            entry = '<div class="entry">'
-            if header_line:
-                entry += f'<div class="entry-header">{header_line}</div>'
-            if sub_line:
-                entry += f'<div class="entry-sub">{sub_line}</div>'
-            if bullet_html:
-                entry += f"<ul>{bullet_html}</ul>"
-            entry += "</div>"
-            items.append(entry)
-        sections.append("<h2>EXPERIENCE</h2>" + _render_entries(items))
-
-    projects = cv.get("projects") or []
-    if projects:
-        items = []
-        for proj in projects:
-            name = _esc(proj.get("name"))
-            tech = _esc(proj.get("tech_stack"))
-            desc = _esc(proj.get("description"))
-
-            entry = '<div class="entry">'
-            if name:
-                entry += f'<div class="entry-header">{name}</div>'
-            if tech:
-                entry += f'<div class="entry-sub">{tech}</div>'
-            if desc:
-                entry += f"<p>{desc}</p>"
-            entry += "</div>"
-            items.append(entry)
-        sections.append("<h2>PROJECTS</h2>" + _render_entries(items))
-
-    # Only render the Certifications header when there's actual content — an empty
-    # section header with nothing under it looks like a mistake on a printed/exported PDF,
-    # and ATS scoring doesn't require the header to exist if there's nothing to parse.
-    certifications = cv.get("certifications") or []
-    if certifications:
-        items = []
-        for cert in certifications:
-            name = _esc(cert.get("name"))
-            sub = " | ".join(x for x in [_esc(cert.get("issuer")), _esc(cert.get("date_earned"))] if x)
-
-            entry = '<div class="entry">'
-            if name:
-                entry += f'<div class="entry-header">{name}</div>'
-            if sub:
-                entry += f'<div class="entry-sub">{sub}</div>'
-            entry += "</div>"
-            items.append(entry)
-        sections.append("<h2>CERTIFICATIONS</h2>" + _render_entries(items))
-
-    education = cv.get("education") or []
-    if education:
-        items = []
-        for edu in education:
-            degree = _esc(edu.get("degree"))
-            field = _esc(edu.get("field"))
-            title_line = f"{degree} in {field}" if degree and field else (degree or field)
-            sub = " | ".join(x for x in [_esc(edu.get("institution")), _esc(edu.get("graduation_year"))] if x)
-
-            entry = '<div class="entry">'
-            if title_line:
-                entry += f'<div class="entry-header">{title_line}</div>'
-            if sub:
-                entry += f'<div class="entry-sub">{sub}</div>'
-            entry += "</div>"
-            items.append(entry)
-        sections.append("<h2>EDUCATION</h2>" + _render_entries(items))
-
-    # Languages was present in the CV JSON schema but was never rendered — added here so
-    # it actually appears in the exported document.
-    languages = cv.get("languages") or []
-    if languages:
-        languages_line = " | ".join(_esc(l) for l in languages if l)
-        sections.append(f"<h2>LANGUAGES</h2><p>{languages_line}</p>")
-
-    body = "".join(sections)
-    return f'<!doctype html><html><head><meta charset="utf-8">{CV_STYLE}</head><body>{body}</body></html>'
-
-
-def build_cover_letter_html(text: str) -> str:
-    """Wraps plain cover letter text in a simple, clean HTML letter layout."""
-    content = _esc(text or "")
-    return (
-        f'<!doctype html><html><head><meta charset="utf-8">{COVER_LETTER_STYLE}</head>'
-        f'<body><div class="letter">{content}</div></body></html>'
-    )
-
-
-def render_cv_pdf(cv: Dict[str, Any], output_path: str) -> str:
-    """
-    Renders a structured CV JSON object to a single-column, ATS-safe PDF file.
-
-    Requires WeasyPrint: pip install weasyprint --break-system-packages
-    (WeasyPrint also needs system libraries — Pango/Cairo — already present on most
-    Linux servers; see https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
-    if you hit an import error in your deployment environment.)
-
-    Returns the output_path for convenience.
-    """
-    from weasyprint import HTML  # imported lazily so this module still loads without it
-
-    html_content = build_cv_html(cv)
-    HTML(string=html_content).write_pdf(output_path)
-    return output_path
-
-
-def render_cover_letter_pdf(text: str, output_path: str) -> str:
-    """Renders a plain-text cover letter to PDF. Requires WeasyPrint (see render_cv_pdf)."""
-    from weasyprint import HTML
-
-    html_content = build_cover_letter_html(text)
-    HTML(string=html_content).write_pdf(output_path)
-    return output_path
+# Seeded into the templates table by migrations.py, in this order -- the first entry
+# per kind is the canonical "no template_id specified" default (see render.py).
+BUILTIN_CV_TEMPLATES = [
+    ("Default", DEFAULT_CV_TEMPLATE_HTML),
+    ("Navy Sidebar", NAVY_SIDEBAR_CV_TEMPLATE_HTML),
+    ("Teal Header", TEAL_HEADER_CV_TEMPLATE_HTML),
+    ("Minimalist", MINIMALIST_CV_TEMPLATE_HTML),
+]
+BUILTIN_COVER_LETTER_TEMPLATES = [
+    ("Default", DEFAULT_COVER_LETTER_TEMPLATE_HTML),
+]

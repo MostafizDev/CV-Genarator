@@ -11,7 +11,7 @@ import services.ai.router as ai_router
 from services.prompts.cv import build_cv_prompt
 from services.prompts.cover_letter import build_cover_letter_prompt
 from services.project_matching import rank_and_highlight_projects
-from auth import get_current_user
+from core.firebase_auth import get_current_user
 
 router = APIRouter(prefix="/api/generate", tags=["Generate"])
 

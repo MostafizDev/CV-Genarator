@@ -6,7 +6,7 @@ import models
 import schemas
 from openai import OpenAI
 from groq import Groq
-from auth import get_current_user
+from core.firebase_auth import get_current_user
 
 DEFAULT_MODELS = {
     "groq": "openai/gpt-oss-120b",

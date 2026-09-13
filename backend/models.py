@@ -11,9 +11,13 @@ def _utcnow() -> datetime:
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
+    # Primary key is the Firebase UID (a string), not an auto-increment integer --
+    # identity is owned by Firebase Auth, not this table.
+    id = Column(String, primary_key=True, index=True)
+    email = Column(String, default="")
+    display_name = Column(String, default="")
+    # No admin-only features currently route through this -- kept dormant in case
+    # an admin-facing feature is reintroduced later.
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_utcnow)
 
@@ -22,7 +26,7 @@ class Profile(Base):
     __tablename__ = "profiles"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     full_name = Column(String, default="")
     email = Column(String, default="")
     phone = Column(String, default="")
@@ -102,7 +106,7 @@ class ProviderSetting(Base):
     __tablename__ = "provider_settings"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     provider = Column(String, default="openai")
     api_key = Column(String, default="")
     model = Column(String, default="gpt-4o-mini")
@@ -113,7 +117,7 @@ class Application(Base):
     __tablename__ = "applications"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     company = Column(String, default="")
     position = Column(String, default="")
     job_description = Column(Text, default="")
@@ -124,3 +128,16 @@ class Application(Base):
     status = Column(String, default="Generated")
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+
+class Template(Base):
+    __tablename__ = "templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # NULL user_id = a built-in template, seeded once and available to everyone.
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    kind = Column(String, nullable=False)  # "cv" | "cover_letter"
+    name = Column(String, nullable=False)
+    is_custom = Column(Boolean, default=True)
+    template_html = Column(Text, nullable=False)  # Jinja2 source
+    created_at = Column(DateTime, default=_utcnow)

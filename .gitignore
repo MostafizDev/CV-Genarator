@@ -4,6 +4,7 @@ backend/test_app.db
 *.db
 .env
 .env.*
+backend/firebase-service-account.json
 
 # Python
 backend/venv/

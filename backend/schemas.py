@@ -123,6 +123,7 @@ class GenerateResponse(BaseModel):
 class ExportPdfRequest(BaseModel):
     type: Literal["cv", "cover_letter"]
     content: Union[Dict[str, Any], str]
+    template_id: Optional[int] = None
 
 
 class ApplicationSchema(BaseModel):
@@ -184,34 +185,38 @@ class ProviderTestResponse(BaseModel):
     message: str
 
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-
-class LoginResponse(BaseModel):
-    access_token: str
-    username: str
-    is_admin: bool
-
-
 class CurrentUserResponse(BaseModel):
-    id: int
-    username: str
+    id: str
+    email: str = ""
+    display_name: str = ""
     is_admin: bool
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class UserCreate(BaseModel):
-    username: str
-    password: str
+class TemplateBase(BaseModel):
+    name: str
+    kind: Literal["cv", "cover_letter"]
+    template_html: str
 
 
-class UserSchema(BaseModel):
+class TemplateCreate(TemplateBase):
+    pass
+
+
+class TemplatePreviewRequest(BaseModel):
+    kind: Literal["cv", "cover_letter"]
+    template_html: str
+
+
+class TemplatePreviewResponse(BaseModel):
+    html: str
+
+
+class TemplateSchema(TemplateBase):
     id: int
-    username: str
-    is_admin: bool
+    user_id: Optional[str] = None
+    is_custom: bool
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

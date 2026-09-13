@@ -2,9 +2,22 @@ app = "cv-genarator"
 primary_region = "ord"
 
 [build]
+  # Firebase Web App config, baked into the frontend bundle at image build time.
+  # Fill these in from Firebase console -> Project Settings -> General -> Your apps.
+  [build.args]
+    VITE_FIREBASE_API_KEY = "AIzaSyCp0Fc6WJovytoHuPEWK4THN5Zu4RIIOAk"
+    VITE_FIREBASE_AUTH_DOMAIN = "cv-maker-6ee87.firebaseapp.com"
+    VITE_FIREBASE_PROJECT_ID = "cv-maker-6ee87"
+    VITE_FIREBASE_APP_ID = "1:377792757074:web:3a9902d851630d95d78e8b"
+    VITE_FIREBASE_MESSAGING_SENDER_ID = "377792757074"
 
 [env]
   DATABASE_URL = "sqlite:////data/app.db"
+  # FIREBASE_PROJECT_ID is also read at runtime by the backend (Firebase Admin SDK).
+  FIREBASE_PROJECT_ID = "cv-maker-6ee87"
+  # FIREBASE_SERVICE_ACCOUNT_JSON is a secret -- set it with:
+  #   fly secrets set FIREBASE_SERVICE_ACCOUNT_JSON="$(cat service-account.json)"
+  # not here.
 
 [mounts]
   source = "data"

@@ -1,25 +1,32 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from database import get_db
 import models
 import schemas
-from auth import create_access_token, get_current_user, verify_password
+from core.firebase_auth import get_current_user, verify_firebase_token
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
-@router.post("/login", response_model=schemas.LoginResponse)
-def login(data: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.username == data.username.strip()).first()
-    if not user or not verify_password(data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Incorrect username or password.")
-
-    return schemas.LoginResponse(
-        access_token=create_access_token(user),
-        username=user.username,
-        is_admin=user.is_admin,
-    )
+@router.post("/sync", response_model=schemas.CurrentUserResponse)
+def sync_user(claims: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+    """Self-service account creation: verifies the caller's Firebase ID token and, on a
+    user's first-ever sign-in, creates their local User row and an empty Profile. No
+    admin action is involved -- anyone who can sign in with Google gets an account.
+    """
+    uid = claims["uid"]
+    user = db.query(models.User).get(uid)
+    if user is None:
+        email = claims.get("email", "") or ""
+        name = claims.get("name", "") or ""
+        user = models.User(id=uid, email=email, display_name=name)
+        db.add(user)
+        db.flush()
+        db.add(models.Profile(user_id=uid, email=email, full_name=name))
+        db.commit()
+        db.refresh(user)
+    return user
 
 
 @router.get("/me", response_model=schemas.CurrentUserResponse)

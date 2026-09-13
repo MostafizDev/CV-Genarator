@@ -1,50 +1,49 @@
-from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker
 
-import auth
 import models
-from database import SessionLocal
+from services.pdf.templates import BUILTIN_CV_TEMPLATES, BUILTIN_COVER_LETTER_TEMPLATES
 
 
-def _column_names(engine: Engine, table: str) -> set:
-    return {col["name"] for col in inspect(engine).get_columns(table)}
-
-
-def _add_column(engine: Engine, table: str, column_def_sql: str) -> None:
-    with engine.begin() as conn:
-        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_def_sql}"))
-
-
-def run_migrations(engine: Engine) -> None:
+def seed_builtin_templates(engine: Engine) -> None:
+    """Ensures every built-in template (see services/pdf/templates.py's
+    BUILTIN_CV_TEMPLATES/BUILTIN_COVER_LETTER_TEMPLATES) exists, identified by
+    (kind, name). Existing rows have their content refreshed on every startup --
+    built-ins are never user-edited, so it's safe (and useful) to always keep them
+    in sync with whatever the current code defines, rather than only seeding once.
     """
-    One-time upgrade from the single-tenant schema to the multi-user schema: adds
-    user_id to profiles/provider_settings/applications and backfills any pre-existing
-    rows onto the bootstrap admin account, so upgrading never loses data. A no-op on a
-    brand-new database, since create_all() already builds the current schema from
-    scratch there.
-    """
-    existing_tables = set(inspect(engine).get_table_names())
-    if "profiles" not in existing_tables:
-        return
-
-    if "user_id" in _column_names(engine, "profiles"):
-        return  # already migrated
-
-    db = SessionLocal()
+    Session = sessionmaker(bind=engine)
+    db = Session()
     try:
-        auth.ensure_bootstrap_admin(db)
-        admin = db.query(models.User).filter(models.User.is_admin == True).first()  # noqa: E712
-        admin_id = admin.id
+        for kind, entries in (("cv", BUILTIN_CV_TEMPLATES), ("cover_letter", BUILTIN_COVER_LETTER_TEMPLATES)):
+            for name, template_html in entries:
+                row = (
+                    db.query(models.Template)
+                    .filter_by(kind=kind, name=name, is_custom=False)
+                    .first()
+                )
+                if row:
+                    row.template_html = template_html
+                else:
+                    db.add(
+                        models.Template(
+                            user_id=None,
+                            kind=kind,
+                            name=name,
+                            is_custom=False,
+                            template_html=template_html,
+                        )
+                    )
+        db.commit()
     finally:
         db.close()
 
-    for table in ("profiles", "provider_settings", "applications"):
-        if "user_id" not in _column_names(engine, table):
-            _add_column(engine, table, "user_id INTEGER REFERENCES users(id)")
 
-    with engine.begin() as conn:
-        for table in ("profiles", "provider_settings", "applications"):
-            conn.execute(
-                text(f"UPDATE {table} SET user_id = :admin_id WHERE user_id IS NULL"),
-                {"admin_id": admin_id},
-            )
+def run_migrations(engine: Engine) -> None:
+    """Runs one-time, idempotent setup that create_all() alone doesn't cover, such as
+    seeding fixed reference rows. There is no schema-migration logic here: this app
+    treats local SQLite data as disposable across breaking schema changes (SQLite
+    can't ALTER a column's type), so a breaking change means deleting app.db and
+    letting Base.metadata.create_all() rebuild it from scratch.
+    """
+    seed_builtin_templates(engine)

@@ -1,6 +1,22 @@
 # Stage 1: build the React frontend
 FROM node:20-slim AS frontend-build
 WORKDIR /frontend
+
+# Firebase Web App config gets baked into the built JS bundle at build time (Vite env
+# vars are compile-time, not runtime) -- pass these as --build-arg (or fly.toml
+# [build.args], see README) when building this image. Safe to bake in: Firebase's
+# security model is rule/Admin-SDK-based, not key-secrecy-based.
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_AUTH_DOMAIN
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_APP_ID
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID
+ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
+    VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN \
+    VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID \
+    VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID \
+    VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID
+
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./

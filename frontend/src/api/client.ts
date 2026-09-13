@@ -8,25 +8,24 @@ import type {
   ApplicationUpdate,
   ProviderTestResult,
   CurrentUser,
-  AppUser,
+  Template,
+  TemplateKind,
 } from '../types';
+import { auth } from '../firebase';
 
 // In dev, Vite proxies "/api" to localhost:8000 (see vite.config.ts). In a production
 // build (e.g. served from GitHub Pages, separate from the backend), set VITE_API_BASE
 // to the deployed backend's full URL, e.g. "https://your-backend.onrender.com/api".
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
-const TOKEN_STORAGE_KEY = 'cv_generator_session';
+const SESSION_CACHE_KEY = 'cv_generator_session';
 
 export const AUTH_REQUIRED_EVENT = 'app-auth-required';
 
-interface StoredSession {
-  token: string;
-  username: string;
-  is_admin: boolean;
-}
-
-export function getStoredSession(): StoredSession | null {
-  const raw = localStorage.getItem(TOKEN_STORAGE_KEY);
+// A display-only cache of the current user, refreshed on each /api/auth/sync call, so
+// Navbar can read it synchronously without an async round trip on every render. The
+// real credential is always the live Firebase ID token, fetched fresh per-request below.
+export function getStoredSession(): CurrentUser | null {
+  const raw = localStorage.getItem(SESSION_CACHE_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw);
@@ -35,18 +34,20 @@ export function getStoredSession(): StoredSession | null {
   }
 }
 
-function setStoredSession(session: StoredSession) {
-  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(session));
+function setStoredSession(session: CurrentUser) {
+  localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(session));
 }
 
 export function clearStoredSession() {
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(SESSION_CACHE_KEY);
 }
 
 async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers || {});
-  const session = getStoredSession();
-  if (session?.token) headers.set('Authorization', `Bearer ${session.token}`);
+  // getIdToken() returns a cached valid token or refreshes it silently if it's close to
+  // expiring (Firebase ID tokens expire hourly) -- no manual refresh timer needed.
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+  if (token) headers.set('Authorization', `Bearer ${token}`);
 
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
@@ -67,25 +68,14 @@ function jsonHeaders(): HeadersInit {
   return { 'Content-Type': 'application/json' };
 }
 
-export async function login(username: string, password: string): Promise<{ ok: true } | { ok: false; message: string }> {
-  const response = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: jsonHeaders(),
-    body: JSON.stringify({ username, password }),
-  });
+export async function syncSession(): Promise<CurrentUser> {
+  const response = await apiFetch('/auth/sync', { method: 'POST' });
   if (!response.ok) {
-    return { ok: false, message: await parseErrorDetail(response, 'Login failed.') };
+    throw new Error(await parseErrorDetail(response, 'Failed to sync session'));
   }
-  const body = await response.json();
-  setStoredSession({ token: body.access_token, username: body.username, is_admin: body.is_admin });
-  return { ok: true };
-}
-
-export async function verifySession(): Promise<boolean> {
-  const session = getStoredSession();
-  if (!session?.token) return false;
-  const response = await apiFetch('/auth/me');
-  return response.ok;
+  const user: CurrentUser = await response.json();
+  setStoredSession(user);
+  return user;
 }
 
 export async function getCurrentUser(): Promise<CurrentUser> {
@@ -94,33 +84,6 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     throw new Error(await parseErrorDetail(response, 'Not authenticated'));
   }
   return response.json();
-}
-
-export async function listUsers(): Promise<AppUser[]> {
-  const response = await apiFetch('/users');
-  if (!response.ok) {
-    throw new Error(await parseErrorDetail(response, 'Failed to load users'));
-  }
-  return response.json();
-}
-
-export async function createUser(username: string, password: string): Promise<AppUser> {
-  const response = await apiFetch('/users', {
-    method: 'POST',
-    headers: jsonHeaders(),
-    body: JSON.stringify({ username, password }),
-  });
-  if (!response.ok) {
-    throw new Error(await parseErrorDetail(response, 'Failed to create user'));
-  }
-  return response.json();
-}
-
-export async function deleteUser(id: number): Promise<void> {
-  const response = await apiFetch(`/users/${id}`, { method: 'DELETE' });
-  if (!response.ok) {
-    throw new Error(await parseErrorDetail(response, 'Failed to delete user'));
-  }
 }
 
 export async function getProfile(): Promise<Profile> {
@@ -220,11 +183,15 @@ export async function generateCvAndCoverLetter(data: GenerateRequest): Promise<G
   return response.json();
 }
 
-export async function exportPdf(type: 'cv' | 'cover_letter', content: unknown): Promise<Blob> {
+export async function exportPdf(
+  type: 'cv' | 'cover_letter',
+  content: unknown,
+  templateId?: number | null
+): Promise<Blob> {
   const response = await apiFetch('/export-pdf', {
     method: 'POST',
     headers: jsonHeaders(),
-    body: JSON.stringify({ type, content }),
+    body: JSON.stringify({ type, content, template_id: templateId ?? null }),
   });
 
   if (!response.ok) {
@@ -232,6 +199,50 @@ export async function exportPdf(type: 'cv' | 'cover_letter', content: unknown): 
   }
 
   return response.blob();
+}
+
+export async function getTemplates(): Promise<Template[]> {
+  const response = await apiFetch('/templates');
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to load templates'));
+  }
+  return response.json();
+}
+
+export async function createTemplate(payload: {
+  name: string;
+  kind: TemplateKind;
+  template_html: string;
+}): Promise<Template> {
+  const response = await apiFetch('/templates', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to create template'));
+  }
+  return response.json();
+}
+
+export async function deleteTemplate(id: number): Promise<void> {
+  const response = await apiFetch(`/templates/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to delete template'));
+  }
+}
+
+export async function previewTemplate(kind: TemplateKind, templateHtml: string): Promise<string> {
+  const response = await apiFetch('/templates/preview', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ kind, template_html: templateHtml }),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to preview template'));
+  }
+  const data = await response.json();
+  return data.html;
 }
 
 export async function listApplications(): Promise<ApplicationListItem[]> {

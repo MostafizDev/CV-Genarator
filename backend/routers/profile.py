@@ -12,7 +12,7 @@ import models
 import schemas
 import services.ai.router as ai_router
 from services.prompts.parse_cv import build_parse_cv_prompt
-from auth import get_current_user
+from core.firebase_auth import get_current_user
 
 router = APIRouter(prefix="/api/profile", tags=["Profile"])
 

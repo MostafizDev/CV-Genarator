@@ -1,6 +1,7 @@
 import io
 import json
 import pytest
+from fastapi import Header, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,7 +10,8 @@ import docx
 
 from database import Base, get_db
 import models
-import auth as auth_module
+from core.firebase_auth import get_current_user, verify_firebase_token
+from migrations import seed_builtin_templates
 from main import app
 from services.ai.base import AiProvider
 import services.ai.router as ai_router
@@ -23,6 +25,12 @@ test_engine = create_engine(
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
+# The token prefix a fake test client sends as its bearer token, in place of a real
+# Firebase ID token, so _fake_get_current_user below can tell requests from different
+# TestClient instances apart by their own Authorization header -- just like the real
+# get_current_user tells real users apart, but without needing a live Firebase call.
+FAKE_TOKEN_PREFIX = "faketest:"
+
 
 def override_get_db():
     db = TestingSessionLocal()
@@ -32,45 +40,64 @@ def override_get_db():
         db.close()
 
 
+def _fake_get_current_user(authorization: str = Header(default="")) -> models.User:
+    token = ""
+    if authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    if not token.startswith(FAKE_TOKEN_PREFIX):
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+
+    uid = token[len(FAKE_TOKEN_PREFIX):]
+    db = TestingSessionLocal()
+    try:
+        user = db.query(models.User).get(uid)
+        if not user:
+            raise HTTPException(status_code=401, detail="User no longer exists.")
+        return user
+    finally:
+        db.close()
+
+
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_user] = _fake_get_current_user
 
 
 @pytest.fixture(autouse=True)
 def setup_db():
     Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
+    seed_builtin_templates(test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
 
 
-def _login_client(username: str, password: str) -> TestClient:
+def _client_as(uid: str, email: str = "", display_name: str = "") -> TestClient:
+    """Builds a TestClient authenticated as the given (fake) Firebase user, creating
+    the local User row on first use -- mirroring what /api/auth/sync does for real,
+    without needing a live Firebase call in tests. Each client sends its own fake
+    bearer token, so multiple clients in the same test stay correctly isolated.
+    """
+    db = TestingSessionLocal()
+    try:
+        user = db.query(models.User).get(uid)
+        if not user:
+            user = models.User(id=uid, email=email, display_name=display_name)
+            db.add(user)
+            db.flush()
+            db.add(models.Profile(user_id=uid, email=email, full_name=display_name))
+            db.commit()
+    finally:
+        db.close()
+
     test_client = TestClient(app)
-    res = test_client.post("/api/auth/login", json={"username": username, "password": password})
-    assert res.status_code == 200, res.text
-    body = res.json()
-    test_client.headers["Authorization"] = f"Bearer {body['access_token']}"
-    test_client.test_username = username
+    test_client.headers["Authorization"] = f"Bearer {FAKE_TOKEN_PREFIX}{uid}"
+    test_client.test_user_id = uid
     return test_client
 
 
 @pytest.fixture
 def client():
-    db = TestingSessionLocal()
-    try:
-        auth_module.ensure_bootstrap_admin(db)
-    finally:
-        db.close()
-
-    test_client = _login_client(auth_module.BOOTSTRAP_ADMIN_USERNAME, auth_module.BOOTSTRAP_ADMIN_PASSWORD)
-
-    db = TestingSessionLocal()
-    try:
-        user = db.query(models.User).filter(models.User.username == auth_module.BOOTSTRAP_ADMIN_USERNAME).first()
-        test_client.test_user_id = user.id
-    finally:
-        db.close()
-
-    return test_client
+    return _client_as("test-uid-1")
 
 
 def test_root(client):
@@ -79,55 +106,53 @@ def test_root(client):
     assert response.json()["status"] == "healthy"
 
 
-def test_login_requires_correct_credentials():
-    test_client = TestClient(app)
-    db = TestingSessionLocal()
-    try:
-        auth_module.ensure_bootstrap_admin(db)
-    finally:
-        db.close()
-
-    bad_res = test_client.post(
-        "/api/auth/login",
-        json={"username": auth_module.BOOTSTRAP_ADMIN_USERNAME, "password": "wrong-password"},
-    )
-    assert bad_res.status_code == 401
-
-    good_res = test_client.post(
-        "/api/auth/login",
-        json={"username": auth_module.BOOTSTRAP_ADMIN_USERNAME, "password": auth_module.BOOTSTRAP_ADMIN_PASSWORD},
-    )
-    assert good_res.status_code == 200
-    assert good_res.json()["is_admin"] is True
-
-    # Protected routes reject requests with no token, and with a garbage token
-    assert test_client.get("/api/applications").status_code == 401
+def test_protected_routes_require_authentication():
     no_auth_client = TestClient(app)
+    assert no_auth_client.get("/api/applications").status_code == 401
     no_auth_client.headers["Authorization"] = "Bearer garbage-token"
     assert no_auth_client.get("/api/applications").status_code == 401
 
 
-def test_admin_can_create_user_and_data_is_isolated(client):
-    # client is logged in as the bootstrap admin
-    create_res = client.post("/api/users", json={"username": "second_user", "password": "secondpassword123"})
-    assert create_res.status_code == 200
-    assert create_res.json()["username"] == "second_user"
-    assert create_res.json()["is_admin"] is False
+def test_auth_sync_creates_user_and_profile_on_first_sign_in(monkeypatch):
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        verify_firebase_token,
+        lambda: {"uid": "new-uid", "email": "new@example.com", "name": "New Person"},
+    )
+    test_client = TestClient(app)
 
-    # A non-admin cannot create more users
-    second_client = _login_client("second_user", "secondpassword123")
-    forbidden_res = second_client.post("/api/users", json={"username": "third_user", "password": "whatever123"})
-    assert forbidden_res.status_code == 403
+    res = test_client.post("/api/auth/sync")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["id"] == "new-uid"
+    assert body["email"] == "new@example.com"
 
-    # Admin saves a profile; second user should NOT see it
+    # Calling sync again for the same uid is idempotent (doesn't error / doesn't duplicate)
+    res2 = test_client.post("/api/auth/sync")
+    assert res2.status_code == 200
+    assert res2.json()["id"] == "new-uid"
+
+    db = TestingSessionLocal()
+    try:
+        profile = db.query(models.Profile).filter(models.Profile.user_id == "new-uid").first()
+        assert profile is not None
+        assert profile.full_name == "New Person"
+    finally:
+        db.close()
+
+
+def test_user_data_is_isolated_between_accounts(client):
+    second_client = _client_as("test-uid-2")
+
+    # First user saves a profile; second user should NOT see it
     client.post(
         "/api/profile",
         json={
-            "full_name": "Admin User",
-            "email": "admin@example.com",
+            "full_name": "First User",
+            "email": "first@example.com",
             "phone": "",
             "location": "",
-            "summary": "Admin's profile",
+            "summary": "First user's profile",
             "skills": ["Python"],
             "experiences": [],
             "projects": [],
@@ -136,35 +161,16 @@ def test_admin_can_create_user_and_data_is_isolated(client):
         },
     )
     second_profile = second_client.get("/api/profile").json()
-    assert second_profile["full_name"] == ""  # second user's own (empty) profile, not the admin's
-
-    # Second user saves their own distinct profile
-    second_client.post(
-        "/api/profile",
-        json={
-            "full_name": "Second User",
-            "email": "second@example.com",
-            "phone": "",
-            "location": "",
-            "summary": "",
-            "skills": [],
-            "experiences": [],
-            "projects": [],
-            "certifications": [],
-            "education": [],
-        },
-    )
-    admin_profile = client.get("/api/profile").json()
-    assert admin_profile["full_name"] == "Admin User"  # unaffected by second user's save
+    assert second_profile["full_name"] == ""  # second user's own (empty) profile, not the first's
 
     # Applications created by one user are invisible to (and not fetchable by id by) the other
     app_res = client.post(
         "/api/applications",
-        json={"company": "AdminCo", "position": "Role", "job_description": "JD"},
+        json={"company": "FirstCo", "position": "Role", "job_description": "JD"},
     )
-    admin_app_id = app_res.json()["id"]
+    first_app_id = app_res.json()["id"]
     assert second_client.get("/api/applications").json() == []
-    assert second_client.get(f"/api/applications/{admin_app_id}").status_code == 404
+    assert second_client.get(f"/api/applications/{first_app_id}").status_code == 404
 
 
 def test_profile_empty_get(client):
@@ -612,3 +618,108 @@ def test_generate_with_no_default_provider_but_override(client, monkeypatch):
     assert gen_res.status_code == 200
     assert captured["override"] == "groq"
     assert gen_res.json()["application_id"] is not None
+
+
+def test_templates_list_includes_seeded_builtins(client):
+    res = client.get("/api/templates")
+    assert res.status_code == 200
+    templates = res.json()
+    builtins = [t for t in templates if not t["is_custom"]]
+    assert {t["kind"] for t in builtins} == {"cv", "cover_letter"}
+    assert all(t["user_id"] is None for t in builtins)
+    # Several distinct built-in CV designs, not just one
+    cv_builtin_names = {t["name"] for t in builtins if t["kind"] == "cv"}
+    assert {"Default", "Navy Sidebar", "Teal Header", "Minimalist"}.issubset(cv_builtin_names)
+
+
+def test_templates_preview_renders_sample_data(client):
+    res = client.post(
+        "/api/templates/preview",
+        json={"kind": "cv", "template_html": "<html><body>{{ cv.full_name }}</body></html>"},
+    )
+    assert res.status_code == 200
+    assert "Kelly Blackwell" in res.json()["html"]
+
+    res2 = client.post(
+        "/api/templates/preview",
+        json={"kind": "cover_letter", "template_html": "<html><body>{{ text }}</body></html>"},
+    )
+    assert res2.status_code == 200
+    assert "Kelly Blackwell" in res2.json()["html"]
+
+
+def test_templates_preview_rejects_unknown_variable(client):
+    res = client.post(
+        "/api/templates/preview",
+        json={"kind": "cv", "template_html": "{{ secret_data }}"},
+    )
+    assert res.status_code == 400
+
+
+def test_templates_create_list_and_delete_custom(client):
+    create_res = client.post(
+        "/api/templates",
+        json={
+            "name": "My Cover Letter",
+            "kind": "cover_letter",
+            "template_html": "<html><body>{{ text }}</body></html>",
+        },
+    )
+    assert create_res.status_code == 200
+    created = create_res.json()
+    assert created["is_custom"] is True
+    assert created["name"] == "My Cover Letter"
+    template_id = created["id"]
+
+    # Visible in this user's list, but not another user's
+    assert any(t["id"] == template_id for t in client.get("/api/templates").json())
+    other_client = _client_as("test-uid-other")
+    assert all(t["id"] != template_id for t in other_client.get("/api/templates").json())
+
+    delete_res = client.delete(f"/api/templates/{template_id}")
+    assert delete_res.status_code == 200
+    assert all(t["id"] != template_id for t in client.get("/api/templates").json())
+
+
+def test_templates_reject_unknown_variable(client):
+    res = client.post(
+        "/api/templates",
+        json={
+            "name": "Bad Template",
+            "kind": "cv",
+            "template_html": "<html><body>{{ secret_data }}</body></html>",
+        },
+    )
+    assert res.status_code == 400
+    assert "secret_data" in res.json()["detail"]
+
+
+def test_templates_cannot_delete_builtin(client):
+    builtin = next(t for t in client.get("/api/templates").json() if not t["is_custom"])
+    res = client.delete(f"/api/templates/{builtin['id']}")
+    assert res.status_code == 400
+
+
+def test_export_pdf_uses_custom_template(client):
+    create_res = client.post(
+        "/api/templates",
+        json={
+            "name": "Plain Letter",
+            "kind": "cover_letter",
+            "template_html": "<html><body><p>CUSTOM: {{ text }}</p></body></html>",
+        },
+    )
+    template_id = create_res.json()["id"]
+
+    export_res = client.post(
+        "/api/export-pdf",
+        json={"type": "cover_letter", "content": "Hello there", "template_id": template_id},
+    )
+    assert export_res.status_code == 200
+    assert export_res.headers["content-type"] == "application/pdf"
+
+    default_res = client.post(
+        "/api/export-pdf",
+        json={"type": "cover_letter", "content": "Hello there"},
+    )
+    assert default_res.status_code == 200

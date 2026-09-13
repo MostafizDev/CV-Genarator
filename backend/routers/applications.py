@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
-from auth import get_current_user
+from core.firebase_auth import get_current_user
 
 router = APIRouter(prefix="/api/applications", tags=["Applications"])
 
@@ -34,7 +34,7 @@ def _serialize_application(app: models.Application) -> Dict[str, Any]:
     }
 
 
-def _get_owned_application(db: Session, application_id: int, user_id: int) -> models.Application:
+def _get_owned_application(db: Session, application_id: int, user_id: str) -> models.Application:
     application = (
         db.query(models.Application)
         .filter(models.Application.id == application_id, models.Application.user_id == user_id)

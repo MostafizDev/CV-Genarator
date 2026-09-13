@@ -7,7 +7,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { NewApplicationPage } from './pages/NewApplicationPage';
 import { TrackerPage } from './pages/TrackerPage';
 import { ApplicationDetailPage } from './pages/ApplicationDetailPage';
-import { UsersPage } from './pages/UsersPage';
+import { TemplatesPage } from './pages/TemplatesPage';
 
 export const App: React.FC = () => {
   return (
@@ -23,7 +23,7 @@ export const App: React.FC = () => {
               <Route path="/tracker" element={<TrackerPage />} />
               <Route path="/tracker/:id" element={<ApplicationDetailPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/users" element={<UsersPage />} />
+              <Route path="/templates" element={<TemplatesPage />} />
               <Route path="*" element={<Navigate to="/profile" replace />} />
             </Routes>
           </main>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Key,
   CheckCircle2,
@@ -13,9 +14,16 @@ import {
   RefreshCw,
   Star,
   PlugZap,
+  LayoutTemplate,
 } from 'lucide-react';
-import type { ProviderSetting } from '../types';
-import { getSettings, saveSetting, testProviderConnection } from '../api/client';
+import type { ProviderSetting, Template, TemplateKind } from '../types';
+import { getSettings, saveSetting, testProviderConnection, getTemplates } from '../api/client';
+import { getDefaultTemplateId, setDefaultTemplateId } from '../utils/templatePrefs';
+
+const TEMPLATE_KINDS: { id: TemplateKind; label: string }[] = [
+  { id: 'cv', label: 'CV Template' },
+  { id: 'cover_letter', label: 'Cover Letter Template' },
+];
 
 interface ProviderMeta {
   id: string;
@@ -92,6 +100,32 @@ export const SettingsPage: React.FC = () => {
   const [testing, setTesting] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [defaultTemplateIds, setDefaultTemplateIds] = useState<Record<TemplateKind, number | null>>({
+    cv: null,
+    cover_letter: null,
+  });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await getTemplates();
+        setTemplates(list);
+      } catch {
+        // Non-fatal: the default-template picker just won't have options to show
+      }
+    })();
+    setDefaultTemplateIds({
+      cv: getDefaultTemplateId('cv'),
+      cover_letter: getDefaultTemplateId('cover_letter'),
+    });
+  }, []);
+
+  const handleSelectTemplate = (kind: TemplateKind, id: number | null) => {
+    setDefaultTemplateId(kind, id);
+    setDefaultTemplateIds((prev) => ({ ...prev, [kind]: id }));
+  };
 
   const loadSettings = useCallback(async () => {
     try {
@@ -385,6 +419,50 @@ export const SettingsPage: React.FC = () => {
             </div>
           );
         })}
+      </div>
+
+      {/* Default Template Picker */}
+      <div className="mt-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-base font-semibold text-slate-900 flex items-center space-x-2">
+            <LayoutTemplate className="w-4 h-4 text-sky-600" />
+            <span>Default Templates</span>
+          </h2>
+          <Link to="/templates" className="text-xs text-sky-600 hover:text-sky-800 font-medium">
+            Manage templates
+          </Link>
+        </div>
+        <p className="text-xs text-slate-500">
+          Choose which template each PDF export uses by default. Leave unset to use the built-in template.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {TEMPLATE_KINDS.map(({ id: kind, label }) => {
+            const options = templates.filter((t) => t.kind === kind);
+            return (
+              <div key={kind}>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  {label}
+                </label>
+                <select
+                  value={defaultTemplateIds[kind] ?? ''}
+                  onChange={(e) =>
+                    handleSelectTemplate(kind, e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                >
+                  <option value="">Built-in (default)</option>
+                  {options.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                      {!t.is_custom ? ' (built-in)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

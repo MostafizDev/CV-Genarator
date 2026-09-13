@@ -141,14 +141,20 @@ export interface ProviderTestResult {
 }
 
 export interface CurrentUser {
-  id: number;
-  username: string;
+  id: string;
+  email: string;
+  display_name: string;
   is_admin: boolean;
 }
 
-export interface AppUser {
+export type TemplateKind = 'cv' | 'cover_letter';
+
+export interface Template {
   id: number;
-  username: string;
-  is_admin: boolean;
+  user_id: string | null;
+  name: string;
+  kind: TemplateKind;
+  is_custom: boolean;
+  template_html: string;
   created_at: string;
 }
