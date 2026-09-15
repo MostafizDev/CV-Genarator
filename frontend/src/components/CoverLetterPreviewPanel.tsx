@@ -37,7 +37,7 @@ export const CoverLetterPreviewPanel: React.FC<CoverLetterPreviewPanelProps> = (
           onClick={copyText}
           className="flex items-center space-x-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700"
         >
-          {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
           <span>{copied ? 'Copied' : 'Copy Cover Letter'}</span>
         </button>
       </div>
@@ -47,7 +47,7 @@ export const CoverLetterPreviewPanel: React.FC<CoverLetterPreviewPanelProps> = (
           rows={16}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full text-xs sm:text-sm leading-relaxed text-slate-700 whitespace-pre-wrap font-serif bg-slate-50/50 p-6 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+          className="w-full text-xs sm:text-sm leading-relaxed text-slate-700 whitespace-pre-wrap font-serif bg-slate-50/50 p-6 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
         />
       </div>
 

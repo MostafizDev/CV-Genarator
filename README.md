@@ -1,4 +1,4 @@
-# CV Generator
+# Backedstory
 
 A full-stack, multi-user application that manages a candidate's master profile and uses AI to generate tailored, ATS-optimized CVs and cover letters for specific job descriptions — with a built-in application tracker, custom PDF templates, and self-serve Google sign-in.
 

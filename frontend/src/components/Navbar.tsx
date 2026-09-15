@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { NavLink, Link, useLocation } from 'react-router-dom';
-import { User, Sparkles, Settings, FileText, ClipboardList, Cpu, LogOut, LayoutTemplate } from 'lucide-react';
+import { User, Sparkles, Settings, BookOpen, ClipboardList, Cpu, LogOut, LayoutTemplate } from 'lucide-react';
 import { auth } from '../firebase';
 import { getSettings, getStoredSession, clearStoredSession, AUTH_REQUIRED_EVENT } from '../api/client';
 
@@ -49,18 +49,18 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-tr from-sky-600 to-indigo-600 rounded-xl text-white shadow-md shadow-sky-500/20">
-              <FileText className="w-5 h-5" />
+            <div className="p-2 bg-blue-950 rounded-xl text-white shadow-md shadow-blue-950/20">
+              <BookOpen className="w-5 h-5" />
             </div>
             <div className="flex items-center">
-              <span className="text-lg font-bold bg-gradient-to-r from-slate-900 via-sky-900 to-indigo-950 bg-clip-text text-transparent">
-                CV Generator
+              <span className="text-lg font-bold text-blue-950">
+                Backedstory
               </span>
               {activeProvider && (
                 <Link
                   to="/settings"
                   title="Active AI provider — click to change"
-                  className="ml-2 flex items-center space-x-1 text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium rounded-full transition"
+                  className="ml-2 flex items-center space-x-1 text-xs px-2 py-0.5 bg-green-100 text-green-700 hover:bg-green-200 font-medium rounded-full transition"
                 >
                   <Cpu className="w-3 h-3" />
                   <span>{PROVIDER_LABELS[activeProvider] || activeProvider}</span>
@@ -77,7 +77,7 @@ export const Navbar: React.FC = () => {
                 className={({ isActive }) =>
                   `flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-sky-50 text-sky-700 font-semibold shadow-xs'
+                      ? 'bg-blue-50 text-blue-700 font-semibold shadow-xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`
                 }
@@ -95,7 +95,7 @@ export const Navbar: React.FC = () => {
                   type="button"
                   onClick={handleLogout}
                   title="Log out"
-                  className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                  className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>

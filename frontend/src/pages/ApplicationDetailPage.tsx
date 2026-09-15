@@ -21,10 +21,10 @@ import { CoverLetterPreviewPanel } from '../components/CoverLetterPreviewPanel';
 
 const STATUS_STYLES: Record<string, string> = {
   Generated: 'bg-slate-100 text-slate-700 border-slate-200',
-  Applied: 'bg-sky-50 text-sky-700 border-sky-200',
+  Applied: 'bg-blue-50 text-blue-700 border-blue-200',
   Interview: 'bg-amber-50 text-amber-700 border-amber-200',
-  Offer: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+  Offer: 'bg-green-100 text-green-700 border-green-200',
+  Rejected: 'bg-red-50 text-red-700 border-red-200',
 };
 
 export const ApplicationDetailPage: React.FC = () => {
@@ -110,7 +110,7 @@ export const ApplicationDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 text-sky-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         <p className="mt-3 text-sm text-slate-500 font-medium">Loading application...</p>
       </div>
     );
@@ -123,8 +123,8 @@ export const ApplicationDetailPage: React.FC = () => {
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Tracker</span>
         </Link>
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start space-x-3 text-sm">
-          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start space-x-3 text-sm">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <p>{error}</p>
         </div>
       </div>
@@ -181,7 +181,7 @@ export const ApplicationDetailPage: React.FC = () => {
                 value={application.status}
                 onChange={(e) => handleStatusChange(e.target.value as ApplicationStatus)}
                 disabled={updatingStatus}
-                className={`pl-3 pr-8 py-2 rounded-lg text-sm font-semibold border focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition cursor-pointer appearance-none ${
+                className={`pl-3 pr-8 py-2 rounded-lg text-sm font-semibold border focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition cursor-pointer appearance-none ${
                   STATUS_STYLES[application.status] || STATUS_STYLES.Generated
                 }`}
               >
@@ -218,8 +218,8 @@ export const ApplicationDetailPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mt-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start space-x-3 text-sm">
-          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+        <div className="mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start space-x-3 text-sm">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <p className="text-xs sm:text-sm">{error}</p>
         </div>
       )}
@@ -236,11 +236,11 @@ export const ApplicationDetailPage: React.FC = () => {
         />
 
         {exportError && (
-          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start space-x-3 text-sm">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start space-x-3 text-sm">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-semibold">Export Error</p>
-              <p className="mt-0.5 text-xs text-rose-700">{exportError}</p>
+              <p className="mt-0.5 text-xs text-red-700">{exportError}</p>
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup } from 'firebase/auth';
-import { Lock, Loader2, AlertCircle } from 'lucide-react';
+import { BookOpen, Loader2, AlertCircle } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import { syncSession, AUTH_REQUIRED_EVENT } from '../api/client';
 
@@ -50,7 +50,7 @@ export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children })
   if (status === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 text-sky-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
       </div>
     );
   }
@@ -60,15 +60,15 @@ export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children })
       <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-sm bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-5">
           <div className="flex flex-col items-center text-center space-y-2">
-            <div className="p-3 bg-sky-50 text-sky-600 rounded-2xl">
-              <Lock className="w-6 h-6" />
+            <div className="p-3 bg-blue-950 text-white rounded-2xl">
+              <BookOpen className="w-6 h-6" />
             </div>
-            <h1 className="text-lg font-bold text-slate-900">CV Generator</h1>
+            <h1 className="text-lg font-bold text-slate-900">Backedstory</h1>
             <p className="text-sm text-slate-500">Sign in with Google to continue.</p>
           </div>
 
           {error && (
-            <div className="flex items-center space-x-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+            <div className="flex items-center space-x-2 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>

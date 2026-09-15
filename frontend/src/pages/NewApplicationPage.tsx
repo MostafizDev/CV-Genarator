@@ -164,16 +164,16 @@ export const NewApplicationPage: React.FC = () => {
       )}
 
       {error && (
-        <div className="mt-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start space-x-3 text-sm">
-          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+        <div className="mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start space-x-3 text-sm">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold">Generation Error</p>
-            <p className="mt-0.5 text-xs text-rose-700">{error}</p>
+            <p className="mt-0.5 text-xs text-red-700">{error}</p>
             <div className="mt-2 flex space-x-4 text-xs font-medium">
-              <Link to="/profile" className="underline hover:text-rose-900">
+              <Link to="/profile" className="underline hover:text-red-900">
                 Check Profile
               </Link>
-              <Link to="/settings" className="underline hover:text-rose-900">
+              <Link to="/settings" className="underline hover:text-red-900">
                 Check API Key in Settings
               </Link>
             </div>
@@ -186,7 +186,7 @@ export const NewApplicationPage: React.FC = () => {
         {/* Left Column: Input Form (5 cols on lg) */}
         <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5">
           <h2 className="text-base font-semibold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
-            <Briefcase className="w-4 h-4 text-sky-600" />
+            <Briefcase className="w-4 h-4 text-blue-600" />
             <span>Target Job Details</span>
           </h2>
 
@@ -202,7 +202,7 @@ export const NewApplicationPage: React.FC = () => {
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="e.g. Stripe, OpenAI, Google"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                   required
                 />
               </div>
@@ -219,7 +219,7 @@ export const NewApplicationPage: React.FC = () => {
                   value={position}
                   onChange={(e) => setPosition(e.target.value)}
                   placeholder="e.g. Senior Full Stack Engineer"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                   required
                 />
               </div>
@@ -234,7 +234,7 @@ export const NewApplicationPage: React.FC = () => {
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder="Paste the full job posting, responsibilities, requirements, and qualifications here..."
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                 required
               />
             </div>
@@ -242,7 +242,7 @@ export const NewApplicationPage: React.FC = () => {
             <button
               type="submit"
               disabled={generating || !hasConfiguredProvider}
-              className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 active:from-sky-800 active:to-indigo-800 text-white font-semibold text-sm rounded-xl shadow-md shadow-sky-500/20 transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-600/20 transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {generating ? (
                 <>
@@ -263,7 +263,7 @@ export const NewApplicationPage: React.FC = () => {
         <div className="lg:col-span-7 space-y-6">
           {!result && !generating && (
             <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
-              <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-6 h-6" />
               </div>
               <h3 className="text-base font-semibold text-slate-900">No application generated yet</h3>
@@ -275,7 +275,7 @@ export const NewApplicationPage: React.FC = () => {
 
           {generating && (
             <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs">
-              <Loader2 className="w-10 h-10 text-sky-600 animate-spin mx-auto mb-4" />
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
               <h3 className="text-base font-semibold text-slate-900">AI is tailoring your application...</h3>
               <p className="text-slate-500 text-xs mt-1 max-w-md mx-auto">
                 Analyzing job description keywords, highlighting your matching achievements, and drafting a high-impact cover letter.
@@ -294,11 +294,11 @@ export const NewApplicationPage: React.FC = () => {
               />
 
               {exportError && (
-                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start space-x-3 text-sm">
-                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start space-x-3 text-sm">
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="font-semibold">Export Error</p>
-                    <p className="mt-0.5 text-xs text-rose-700">{exportError}</p>
+                    <p className="mt-0.5 text-xs text-red-700">{exportError}</p>
                   </div>
                 </div>
               )}

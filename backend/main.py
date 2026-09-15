@@ -13,7 +13,7 @@ models.Base.metadata.create_all(bind=database.engine)
 migrations.run_migrations(database.engine)
 
 app = FastAPI(
-    title="CV Generator API",
+    title="Backedstory API",
     description="Backend API for managing candidate profiles, AI provider settings, and CV/cover letter generation.",
     version="1.0.0",
 )
@@ -75,7 +75,7 @@ else:
     def root():
         return {
             "status": "healthy",
-            "message": "CV Generator API is active and running.",
+            "message": "Backedstory API is active and running.",
             "endpoints": [
                 "/api/auth",
                 "/api/profile",

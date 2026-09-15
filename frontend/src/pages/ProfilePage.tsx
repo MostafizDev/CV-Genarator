@@ -274,7 +274,7 @@ export const ProfilePage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 text-sky-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         <p className="mt-3 text-sm text-slate-500 font-medium">Loading candidate profile...</p>
       </div>
     );
@@ -287,14 +287,14 @@ export const ProfilePage: React.FC = () => {
         <div
           className={`fixed bottom-6 right-6 z-50 flex items-center space-x-2 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium transition-all animate-bounce ${
             toast.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-emerald-500/10'
-              : 'bg-rose-50 text-rose-800 border-rose-200 shadow-rose-500/10'
+              ? 'bg-green-100 text-green-800 border-green-200 shadow-green-1000/10'
+              : 'bg-red-50 text-red-800 border-red-200 shadow-red-500/10'
           }`}
         >
           {toast.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
           ) : (
-            <AlertCircle className="w-5 h-5 text-rose-600" />
+            <AlertCircle className="w-5 h-5 text-red-600" />
           )}
           <span>{toast.message}</span>
         </div>
@@ -313,7 +313,7 @@ export const ProfilePage: React.FC = () => {
 
         <div className="flex items-center flex-wrap gap-2.5">
           <label
-            className={`flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 active:from-sky-800 active:to-indigo-800 text-white text-sm font-semibold rounded-lg shadow-sm shadow-sky-600/20 cursor-pointer transition ${
+            className={`flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-lg shadow-sm shadow-blue-600/20 cursor-pointer transition ${
               parsingCv ? 'opacity-70 pointer-events-none' : ''
             }`}
           >
@@ -363,7 +363,7 @@ export const ProfilePage: React.FC = () => {
         {/* Personal Details */}
         <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center space-x-2 pb-4 border-b border-slate-100">
-            <User className="w-5 h-5 text-sky-600" />
+            <User className="w-5 h-5 text-blue-600" />
             <span>Personal Information</span>
           </h2>
 
@@ -377,7 +377,7 @@ export const ProfilePage: React.FC = () => {
                 value={profile.full_name}
                 onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
                 placeholder="e.g. Alex Morgan"
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                 required
               />
             </div>
@@ -393,7 +393,7 @@ export const ProfilePage: React.FC = () => {
                   value={profile.email}
                   onChange={(e) => setProfile({ ...profile, email: e.target.value })}
                   placeholder="alex.morgan@example.com"
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                   required
                 />
               </div>
@@ -410,7 +410,7 @@ export const ProfilePage: React.FC = () => {
                   value={profile.phone}
                   onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                   placeholder="+1 (555) 234-5678"
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                 />
               </div>
             </div>
@@ -426,7 +426,7 @@ export const ProfilePage: React.FC = () => {
                   value={profile.location}
                   onChange={(e) => setProfile({ ...profile, location: e.target.value })}
                   placeholder="San Francisco, CA (or Remote)"
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                 />
               </div>
             </div>
@@ -442,7 +442,7 @@ export const ProfilePage: React.FC = () => {
                   value={profile.linkedin || ''}
                   onChange={(e) => setProfile({ ...profile, linkedin: e.target.value })}
                   placeholder="https://linkedin.com/in/alexmorgan"
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                 />
               </div>
             </div>
@@ -458,7 +458,7 @@ export const ProfilePage: React.FC = () => {
                   value={profile.portfolio_url || ''}
                   onChange={(e) => setProfile({ ...profile, portfolio_url: e.target.value })}
                   placeholder="https://alexmorgan.dev"
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                 />
               </div>
             </div>
@@ -469,7 +469,7 @@ export const ProfilePage: React.FC = () => {
         <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
-              <FileText className="w-5 h-5 text-sky-600" />
+              <FileText className="w-5 h-5 text-blue-600" />
               <span>Professional Summary</span>
             </h2>
             <p className="text-xs text-slate-500 mt-1 mb-2">
@@ -480,13 +480,13 @@ export const ProfilePage: React.FC = () => {
               value={profile.summary}
               onChange={(e) => setProfile({ ...profile, summary: e.target.value })}
               placeholder="Seasoned Software Engineer with 6+ years building scalable microservices, web platforms, and cloud infrastructure..."
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
             />
           </div>
 
           <div>
             <h2 className="text-lg font-semibold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
-              <Award className="w-5 h-5 text-sky-600" />
+              <Award className="w-5 h-5 text-blue-600" />
               <span>Core Skills</span>
             </h2>
             <p className="text-xs text-slate-500 mt-1 mb-2">
@@ -504,7 +504,7 @@ export const ProfilePage: React.FC = () => {
                   }
                 }}
                 placeholder="Type a skill and press Enter (or comma-separated)"
-                className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition"
+                className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
               />
               <button
                 type="button"
@@ -520,13 +520,13 @@ export const ProfilePage: React.FC = () => {
                 {profile.skills.map((skill, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1 bg-sky-50 border border-sky-100 text-sky-800 text-xs font-medium rounded-full"
+                    className="inline-flex items-center space-x-1.5 px-3 py-1 bg-blue-50 border border-blue-100 text-blue-800 text-xs font-medium rounded-full"
                   >
                     <span>{skill}</span>
                     <button
                       type="button"
                       onClick={() => removeSkill(index)}
-                      className="text-sky-400 hover:text-sky-700"
+                      className="text-blue-400 hover:text-blue-700"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -542,7 +542,7 @@ export const ProfilePage: React.FC = () => {
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-                <Briefcase className="w-5 h-5 text-sky-600" />
+                <Briefcase className="w-5 h-5 text-blue-600" />
                 <span>Work Experience</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -552,7 +552,7 @@ export const ProfilePage: React.FC = () => {
             <button
               type="button"
               onClick={addExperience}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-semibold rounded-lg transition"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg transition"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Experience</span>
@@ -574,7 +574,7 @@ export const ProfilePage: React.FC = () => {
                     type="button"
                     onClick={() => removeExperience(expIdx)}
                     title="Delete Experience"
-                    className="absolute top-4 right-4 text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition"
+                    className="absolute top-4 right-4 text-slate-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -587,7 +587,7 @@ export const ProfilePage: React.FC = () => {
                         value={exp.company}
                         onChange={(e) => updateExperience(expIdx, 'company', e.target.value)}
                         placeholder="e.g. Acme Corp"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         required
                       />
                     </div>
@@ -598,7 +598,7 @@ export const ProfilePage: React.FC = () => {
                         value={exp.title}
                         onChange={(e) => updateExperience(expIdx, 'title', e.target.value)}
                         placeholder="e.g. Senior Software Engineer"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         required
                       />
                     </div>
@@ -609,7 +609,7 @@ export const ProfilePage: React.FC = () => {
                         value={exp.start_date}
                         onChange={(e) => updateExperience(expIdx, 'start_date', e.target.value)}
                         placeholder="e.g. Mar 2021"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -619,7 +619,7 @@ export const ProfilePage: React.FC = () => {
                         value={exp.end_date || ''}
                         onChange={(e) => updateExperience(expIdx, 'end_date', e.target.value)}
                         placeholder="e.g. Present"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -632,7 +632,7 @@ export const ProfilePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => addExperienceBullet(expIdx)}
-                        className="text-xs text-sky-600 hover:text-sky-800 font-medium flex items-center space-x-1"
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
                       >
                         <Plus className="w-3 h-3" />
                         <span>Add Bullet</span>
@@ -650,13 +650,13 @@ export const ProfilePage: React.FC = () => {
                               updateExperienceBullet(expIdx, bulletIdx, e.target.value)
                             }
                             placeholder="Spearheaded migration to microservices, reducing API latency by 35%..."
-                            className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+                            className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                           />
                           {exp.bullet_points.length > 1 && (
                             <button
                               type="button"
                               onClick={() => removeExperienceBullet(expIdx, bulletIdx)}
-                              className="text-slate-400 hover:text-rose-500 p-1 mt-1"
+                              className="text-slate-400 hover:text-red-500 p-1 mt-1"
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -676,7 +676,7 @@ export const ProfilePage: React.FC = () => {
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-                <FolderGit2 className="w-5 h-5 text-sky-600" />
+                <FolderGit2 className="w-5 h-5 text-blue-600" />
                 <span>Featured Projects</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -686,7 +686,7 @@ export const ProfilePage: React.FC = () => {
             <button
               type="button"
               onClick={addProject}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-semibold rounded-lg transition"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg transition"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Project</span>
@@ -708,7 +708,7 @@ export const ProfilePage: React.FC = () => {
                     type="button"
                     onClick={() => removeProject(projIdx)}
                     title="Delete Project"
-                    className="absolute top-4 right-4 text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition"
+                    className="absolute top-4 right-4 text-slate-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -721,7 +721,7 @@ export const ProfilePage: React.FC = () => {
                         value={proj.name}
                         onChange={(e) => updateProject(projIdx, 'name', e.target.value)}
                         placeholder="e.g. Distributed Task Queue"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500"
                         required
                       />
                     </div>
@@ -732,7 +732,7 @@ export const ProfilePage: React.FC = () => {
                         value={proj.tech_stack}
                         onChange={(e) => updateProject(projIdx, 'tech_stack', e.target.value)}
                         placeholder="e.g. Python, Redis, FastAPI, Docker"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <div>
@@ -742,7 +742,7 @@ export const ProfilePage: React.FC = () => {
                         value={proj.link || ''}
                         onChange={(e) => updateProject(projIdx, 'link', e.target.value)}
                         placeholder="https://github.com/example/queue"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -754,7 +754,7 @@ export const ProfilePage: React.FC = () => {
                       value={proj.description}
                       onChange={(e) => updateProject(projIdx, 'description', e.target.value)}
                       placeholder="High-throughput distributed asynchronous worker queue handling 10k+ tasks/sec..."
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-sky-500"
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
                 </div>
@@ -769,13 +769,13 @@ export const ProfilePage: React.FC = () => {
           <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h2 className="text-base font-semibold text-slate-900 flex items-center space-x-2">
-                <Award className="w-4 h-4 text-sky-600" />
+                <Award className="w-4 h-4 text-blue-600" />
                 <span>Certifications</span>
               </h2>
               <button
                 type="button"
                 onClick={addCertification}
-                className="flex items-center space-x-1 px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-medium rounded-lg transition"
+                className="flex items-center space-x-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition"
               >
                 <Plus className="w-3 h-3" />
                 <span>Add</span>
@@ -796,7 +796,7 @@ export const ProfilePage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => removeCertification(certIdx)}
-                      className="absolute top-2 right-2 text-slate-400 hover:text-rose-600 p-1"
+                      className="absolute top-2 right-2 text-slate-400 hover:text-red-600 p-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -805,7 +805,7 @@ export const ProfilePage: React.FC = () => {
                       value={cert.name}
                       onChange={(e) => updateCertification(certIdx, 'name', e.target.value)}
                       placeholder="Certification Name (e.g. AWS Solutions Architect)"
-                      className="w-full pr-6 px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sky-500"
+                      className="w-full pr-6 px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input
@@ -813,14 +813,14 @@ export const ProfilePage: React.FC = () => {
                         value={cert.issuer}
                         onChange={(e) => updateCertification(certIdx, 'issuer', e.target.value)}
                         placeholder="Issuer (e.g. Amazon Web Services)"
-                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sky-500"
+                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500"
                       />
                       <input
                         type="text"
                         value={cert.date_earned || ''}
                         onChange={(e) => updateCertification(certIdx, 'date_earned', e.target.value)}
                         placeholder="Date (e.g. 2023)"
-                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sky-500"
+                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -833,13 +833,13 @@ export const ProfilePage: React.FC = () => {
           <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h2 className="text-base font-semibold text-slate-900 flex items-center space-x-2">
-                <GraduationCap className="w-4 h-4 text-sky-600" />
+                <GraduationCap className="w-4 h-4 text-blue-600" />
                 <span>Education</span>
               </h2>
               <button
                 type="button"
                 onClick={addEducation}
-                className="flex items-center space-x-1 px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-medium rounded-lg transition"
+                className="flex items-center space-x-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition"
               >
                 <Plus className="w-3 h-3" />
                 <span>Add</span>
@@ -860,7 +860,7 @@ export const ProfilePage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => removeEducation(eduIdx)}
-                      className="absolute top-2 right-2 text-slate-400 hover:text-rose-600 p-1"
+                      className="absolute top-2 right-2 text-slate-400 hover:text-red-600 p-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -869,7 +869,7 @@ export const ProfilePage: React.FC = () => {
                       value={edu.institution}
                       onChange={(e) => updateEducation(eduIdx, 'institution', e.target.value)}
                       placeholder="University / Institution"
-                      className="w-full pr-6 px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sky-500"
+                      className="w-full pr-6 px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500"
                     />
                     <div className="grid grid-cols-3 gap-2">
                       <input
@@ -877,21 +877,21 @@ export const ProfilePage: React.FC = () => {
                         value={edu.degree}
                         onChange={(e) => updateEducation(eduIdx, 'degree', e.target.value)}
                         placeholder="Degree (e.g. B.S.)"
-                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sky-500"
+                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500"
                       />
                       <input
                         type="text"
                         value={edu.field || ''}
                         onChange={(e) => updateEducation(eduIdx, 'field', e.target.value)}
                         placeholder="Field (e.g. CS)"
-                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sky-500"
+                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500"
                       />
                       <input
                         type="text"
                         value={edu.graduation_year || ''}
                         onChange={(e) => updateEducation(eduIdx, 'graduation_year', e.target.value)}
                         placeholder="Grad Year"
-                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sky-500"
+                        className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -909,7 +909,7 @@ export const ProfilePage: React.FC = () => {
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center space-x-2 px-6 py-2.5 bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white text-sm font-semibold rounded-xl shadow-lg transition"
+            className="flex items-center space-x-2 px-6 py-2.5 bg-blue-500 hover:bg-blue-400 active:bg-blue-600 text-white text-sm font-semibold rounded-xl shadow-lg transition"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             <span>{saving ? 'Saving...' : 'Save Profile'}</span>
@@ -923,7 +923,7 @@ export const ProfilePage: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
               <div className="flex items-center space-x-2">
-                <FileText className="w-5 h-5 text-sky-600" />
+                <FileText className="w-5 h-5 text-blue-600" />
                 <h3 className="font-bold text-slate-900">Extracted CV Text</h3>
               </div>
               <button
