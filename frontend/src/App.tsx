@@ -11,8 +11,8 @@ import { TemplatesPage } from './pages/TemplatesPage';
 
 export const App: React.FC = () => {
   return (
-    <LoginGate>
-      <BrowserRouter>
+    <BrowserRouter>
+      <LoginGate>
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
           <Navbar />
           <main className="flex-1 pb-16">
@@ -28,8 +28,8 @@ export const App: React.FC = () => {
             </Routes>
           </main>
         </div>
-      </BrowserRouter>
-    </LoginGate>
+      </LoginGate>
+    </BrowserRouter>
   );
 };
 

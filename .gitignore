@@ -24,3 +24,6 @@ frontend/dist-ssr/
 !.vscode/extensions.json
 .idea
 .claude/
+
+# Auto-generated signing secret for email/password login tokens (dev fallback for JWT_SECRET)
+backend/.jwt_secret

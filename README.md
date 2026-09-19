@@ -96,6 +96,8 @@ cv-generator/
 3. **Project settings** → General → Your apps → add a **Web app** → copy the config values into `frontend/.env` (see `frontend/.env.example`).
 4. **Project settings** → Service accounts → Generate new private key → save the downloaded JSON; the backend needs it as `FIREBASE_SERVICE_ACCOUNT_JSON` (see below).
 
+Users can also sign up with email + password on the `/register` page (first name, last name, email, password — with a "Generate password" button; no email verification). Passwords are stored only as salted scrypt hashes in the `users` table, and login returns a signed token. Set `JWT_SECRET` to a long random string in production (locally, one is auto-generated into `backend/.jwt_secret`).
+
 ### 1. Run the Backend
 
 ```bash

@@ -723,3 +723,185 @@ def test_export_pdf_uses_custom_template(client):
         json={"type": "cover_letter", "content": "Hello there"},
     )
     assert default_res.status_code == 200
+
+
+# --- Email/password accounts -------------------------------------------------
+
+REGISTER_PAYLOAD = {
+    "first_name": "Ada",
+    "last_name": "Lovelace",
+    "email": "Ada@Example.com",
+    "password": "correct-horse-battery",
+}
+
+
+def test_register_creates_account_with_hashed_password_and_profile():
+    res = TestClient(app).post("/api/auth/register", json=REGISTER_PAYLOAD)
+    assert res.status_code == 201
+    body = res.json()
+    assert body["token"]
+    assert body["user"]["email"] == "ada@example.com"
+    assert body["user"]["display_name"] == "Ada Lovelace"
+
+    db = TestingSessionLocal()
+    try:
+        user = db.query(models.User).get(body["user"]["id"])
+        assert (user.first_name, user.last_name) == ("Ada", "Lovelace")
+        # Stored as a salted hash -- never the plain password.
+        assert user.password_hash.startswith("scrypt$")
+        assert REGISTER_PAYLOAD["password"] not in user.password_hash
+        profile = db.query(models.Profile).filter_by(user_id=user.id).first()
+        assert profile.full_name == "Ada Lovelace"
+    finally:
+        db.close()
+
+
+def test_register_rejects_duplicate_email_short_password_and_bad_email():
+    test_client = TestClient(app)
+    assert test_client.post("/api/auth/register", json=REGISTER_PAYLOAD).status_code == 201
+
+    duplicate = {**REGISTER_PAYLOAD, "email": "ADA@example.com"}
+    assert test_client.post("/api/auth/register", json=duplicate).status_code == 409
+
+    short_password = {**REGISTER_PAYLOAD, "email": "b@example.com", "password": "short"}
+    assert test_client.post("/api/auth/register", json=short_password).status_code == 422
+
+    bad_email = {**REGISTER_PAYLOAD, "email": "not-an-email"}
+    assert test_client.post("/api/auth/register", json=bad_email).status_code == 422
+
+
+def test_login_accepts_correct_password_and_rejects_everything_else():
+    test_client = TestClient(app)
+    test_client.post("/api/auth/register", json=REGISTER_PAYLOAD)
+
+    ok = test_client.post("/api/auth/login", json={"email": "ada@example.com", "password": REGISTER_PAYLOAD["password"]})
+    assert ok.status_code == 200
+    assert ok.json()["token"]
+
+    wrong = test_client.post("/api/auth/login", json={"email": "ada@example.com", "password": "wrong-password"})
+    unknown = test_client.post("/api/auth/login", json={"email": "nobody@example.com", "password": "whatever-pass"})
+    assert wrong.status_code == unknown.status_code == 401
+    assert wrong.json() == unknown.json()
+
+
+def test_login_rejects_google_only_account_with_no_password():
+    _client_as("google-uid", email="g@example.com", display_name="G User")
+    res = TestClient(app).post("/api/auth/login", json={"email": "g@example.com", "password": "any-password-1"})
+    assert res.status_code == 401
+
+
+def test_local_token_authenticates_protected_routes(monkeypatch):
+    # Use the real get_current_user rather than the fake bearer-token override.
+    monkeypatch.delitem(app.dependency_overrides, get_current_user)
+    test_client = TestClient(app)
+    token = test_client.post("/api/auth/register", json=REGISTER_PAYLOAD).json()["token"]
+
+    ok = test_client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert ok.status_code == 200
+    assert ok.json()["email"] == "ada@example.com"
+
+    tampered = test_client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}x"})
+    assert tampered.status_code == 401
+
+
+# --- One account per email (Google + password linking) -----------------------
+
+def _google_claims(uid, email, verified=True, name="Ada Lovelace"):
+    return lambda: {"uid": uid, "email": email, "name": name, "email_verified": verified}
+
+
+def _user_rows(email):
+    db = TestingSessionLocal()
+    try:
+        return db.query(models.User).filter(models.User.email == email).all()
+    finally:
+        db.close()
+
+
+def test_google_sign_in_links_to_existing_password_account(monkeypatch):
+    test_client = TestClient(app)
+    registered = test_client.post("/api/auth/register", json=REGISTER_PAYLOAD).json()["user"]
+
+    monkeypatch.setitem(
+        app.dependency_overrides, verify_firebase_token, _google_claims("g-uid-1", "ADA@example.com")
+    )
+    res = test_client.post("/api/auth/sync")
+    assert res.status_code == 200
+    # Same account, not a second one.
+    assert res.json()["id"] == registered["id"]
+    rows = _user_rows("ada@example.com")
+    assert len(rows) == 1
+    assert rows[0].firebase_uid == "g-uid-1"
+    # The unverified-email password is dropped when the address is claimed via Google.
+    assert rows[0].password_hash is None
+
+    # Signing in with Google again is idempotent.
+    assert test_client.post("/api/auth/sync").json()["id"] == registered["id"]
+    assert len(_user_rows("ada@example.com")) == 1
+
+
+def test_google_sign_in_with_unverified_email_never_links_to_existing_account(monkeypatch):
+    test_client = TestClient(app)
+    test_client.post("/api/auth/register", json=REGISTER_PAYLOAD)
+
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        verify_firebase_token,
+        _google_claims("g-uid-2", "ada@example.com", verified=False),
+    )
+    assert test_client.post("/api/auth/sync").status_code == 409
+    rows = _user_rows("ada@example.com")
+    assert len(rows) == 1 and rows[0].firebase_uid is None and rows[0].password_hash is not None
+
+
+def test_register_with_email_of_google_account_is_rejected(monkeypatch):
+    test_client = TestClient(app)
+    monkeypatch.setitem(
+        app.dependency_overrides, verify_firebase_token, _google_claims("g-uid-3", "ada@example.com")
+    )
+    google_user = test_client.post("/api/auth/sync").json()
+
+    res = test_client.post("/api/auth/register", json=REGISTER_PAYLOAD)
+    assert res.status_code == 409
+    assert "Google" in res.json()["detail"]
+    rows = _user_rows("ada@example.com")
+    assert len(rows) == 1 and rows[0].id == google_user["id"] and rows[0].password_hash is None
+
+
+def test_linked_google_login_resolves_to_the_same_account(monkeypatch):
+    # Use the real get_current_user (Firebase path) instead of the fake-token override.
+    monkeypatch.delitem(app.dependency_overrides, get_current_user)
+    monkeypatch.setattr("core.firebase_auth._firebase_configured", lambda: True)
+    monkeypatch.setattr("core.firebase_auth._init_firebase_app", lambda: None)
+    monkeypatch.setattr(
+        "core.firebase_auth.firebase_auth_sdk.verify_id_token",
+        lambda token: {"uid": "g-uid-4", "email": "ada@example.com", "email_verified": True},
+    )
+    test_client = TestClient(app)
+    registered = test_client.post("/api/auth/register", json=REGISTER_PAYLOAD).json()["user"]
+    monkeypatch.setitem(
+        app.dependency_overrides, verify_firebase_token, _google_claims("g-uid-4", "ada@example.com")
+    )
+    test_client.post("/api/auth/sync")
+
+    me = test_client.get("/api/auth/me", headers={"Authorization": "Bearer any-google-token"})
+    assert me.status_code == 200
+    assert me.json()["id"] == registered["id"]
+
+
+def test_database_rejects_duplicate_emails():
+    from sqlalchemy.exc import IntegrityError
+
+    db = TestingSessionLocal()
+    try:
+        db.add(models.User(id="u1", email="dup@example.com"))
+        db.commit()
+        db.add(models.User(id="u2", email="dup@example.com"))
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        # Accounts without an email may coexist.
+        db.add_all([models.User(id="u3", email=""), models.User(id="u4", email="")])
+        db.commit()
+    finally:
+        db.close()

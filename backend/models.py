@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime, Index, text
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -10,12 +10,27 @@ def _utcnow() -> datetime:
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        # One account per email, however the person signs in (Google or password).
+        # Partial: a Google account may lack an email, and those rows must not collide.
+        Index("uq_users_email", "email", unique=True, sqlite_where=text("email != ''")),
+        Index("ix_users_firebase_uid", "firebase_uid", unique=True),
+    )
 
-    # Primary key is the Firebase UID (a string), not an auto-increment integer --
-    # identity is owned by Firebase Auth, not this table.
+    # Primary key is a string, not an auto-increment integer: the Firebase UID for
+    # accounts created through Google, or a random UUID for email/password accounts.
     id = Column(String, primary_key=True, index=True)
+    # Stored lowercase. Set once a Google sign-in is tied to this account -- either
+    # because it created it (then equal to id) or because its verified email matched an
+    # existing email/password account, which is then linked instead of duplicated.
+    firebase_uid = Column(String, nullable=True)
     email = Column(String, default="")
     display_name = Column(String, default="")
+    first_name = Column(String, default="")
+    last_name = Column(String, default="")
+    # Salted scrypt hash (see core/local_auth.py), never the password itself. NULL for
+    # Google sign-in accounts, which have no local password.
+    password_hash = Column(String, nullable=True)
     # No admin-only features currently route through this -- kept dormant in case
     # an admin-facing feature is reintroduced later.
     is_admin = Column(Boolean, default=False)

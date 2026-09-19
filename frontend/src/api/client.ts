@@ -18,6 +18,9 @@ import { auth } from '../firebase';
 // to the deployed backend's full URL, e.g. "https://your-backend.onrender.com/api".
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 const SESSION_CACHE_KEY = 'cv_generator_session';
+// Bearer token for email/password accounts (issued by the backend). Google accounts
+// have no entry here and authenticate with a live Firebase ID token instead.
+const LOCAL_TOKEN_KEY = 'cv_generator_token';
 
 export const AUTH_REQUIRED_EVENT = 'app-auth-required';
 
@@ -40,13 +43,19 @@ function setStoredSession(session: CurrentUser) {
 
 export function clearStoredSession() {
   localStorage.removeItem(SESSION_CACHE_KEY);
+  localStorage.removeItem(LOCAL_TOKEN_KEY);
+}
+
+export function hasLocalToken(): boolean {
+  return localStorage.getItem(LOCAL_TOKEN_KEY) !== null;
 }
 
 async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers || {});
   // getIdToken() returns a cached valid token or refreshes it silently if it's close to
   // expiring (Firebase ID tokens expire hourly) -- no manual refresh timer needed.
-  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+  const token =
+    localStorage.getItem(LOCAL_TOKEN_KEY) ?? (auth.currentUser ? await auth.currentUser.getIdToken() : null);
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
@@ -61,6 +70,10 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
 
 async function parseErrorDetail(response: Response, fallback: string): Promise<string> {
   const err = await response.json().catch(() => ({ detail: fallback }));
+  // FastAPI validation errors (422) come back as a list of {msg} objects.
+  if (Array.isArray(err.detail)) {
+    return err.detail.map((d: { msg: string }) => d.msg.replace(/^Value error, /, '')).join(' ') || fallback;
+  }
   return err.detail || fallback;
 }
 
@@ -76,6 +89,36 @@ export async function syncSession(): Promise<CurrentUser> {
   const user: CurrentUser = await response.json();
   setStoredSession(user);
   return user;
+}
+
+async function submitAuthForm(path: string, body: object, fallback: string): Promise<CurrentUser> {
+  // Plain fetch rather than apiFetch: a 401 here just means "wrong password", not an
+  // expired session, so it must not fire the global sign-out handling.
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, fallback));
+  }
+  const { token, user }: { token: string; user: CurrentUser } = await response.json();
+  localStorage.setItem(LOCAL_TOKEN_KEY, token);
+  setStoredSession(user);
+  return user;
+}
+
+export function registerAccount(data: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+}): Promise<CurrentUser> {
+  return submitAuthForm('/auth/register', data, 'Could not create your account');
+}
+
+export function loginWithPassword(email: string, password: string): Promise<CurrentUser> {
+  return submitAuthForm('/auth/login', { email, password }, 'Could not sign in');
 }
 
 export async function getCurrentUser(): Promise<CurrentUser> {

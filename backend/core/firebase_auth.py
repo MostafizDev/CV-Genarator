@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 import firebase_admin
@@ -9,6 +10,17 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 import models
+from core import local_auth
+
+logger = logging.getLogger(__name__)
+
+
+def _firebase_configured() -> bool:
+    return bool(
+        firebase_admin._apps
+        or os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    )
 
 
 def _init_firebase_app() -> None:
@@ -50,14 +62,30 @@ def verify_firebase_token(authorization: str = Header(default="")) -> dict:
     try:
         return firebase_auth_sdk.verify_id_token(token)
     except Exception:
+        logger.exception("Firebase ID token verification failed")
         raise HTTPException(status_code=401, detail="Invalid or expired session. Please sign in again.")
 
 
 def get_current_user(
     authorization: str = Header(default=""), db: Session = Depends(get_db)
 ) -> models.User:
+    # Email/password accounts send our own JWT; Google accounts send a Firebase ID token.
+    local_user_id = local_auth.decode_access_token(_extract_bearer_token(authorization))
+    if local_user_id:
+        user = db.query(models.User).get(local_user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found. Please sign in again.")
+        return user
+
+    # Not one of our tokens. Without Firebase configured (email/password-only setup) it
+    # can't be a valid Google session either, so answer 401 rather than a config 500.
+    if not _firebase_configured():
+        raise HTTPException(status_code=401, detail="Invalid or expired session. Please sign in again.")
+
     claims = verify_firebase_token(authorization)
-    user = db.query(models.User).get(claims["uid"])
+    # Look up by firebase_uid, not id: a Google login linked to an email/password account
+    # resolves to that account's row, whose id is not the Firebase UID.
+    user = db.query(models.User).filter(models.User.firebase_uid == claims["uid"]).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found. Please sign in again.")
     return user

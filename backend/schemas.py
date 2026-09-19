@@ -1,6 +1,7 @@
+import re
 from datetime import datetime
 from typing import List, Optional, Any, Dict, Literal, Union
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 APPLICATION_STATUSES = ("Generated", "Applied", "Interview", "Offer", "Rejected")
 
@@ -192,6 +193,51 @@ class CurrentUserResponse(BaseModel):
     is_admin: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _normalize_email(value: str) -> str:
+    email = value.strip().lower()
+    if len(email) > 254 or not _EMAIL_PATTERN.match(email):
+        raise ValueError("Enter a valid email address.")
+    return email
+
+
+class RegisterRequest(BaseModel):
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(min_length=1, max_length=80)
+    email: str
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("This field is required.")
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str = Field(max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
+
+class AuthTokenResponse(BaseModel):
+    token: str
+    user: CurrentUserResponse
 
 
 class TemplateBase(BaseModel):
