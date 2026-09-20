@@ -36,6 +36,7 @@ export const colors = {
   // Feedback
   red: '#DC2626',
   redHover: '#B91C1C',
+  redTint: '#FEE2E2',
 
   // Neutrals
   border: '#E2E8F0',
@@ -50,6 +51,7 @@ export const tones = {
   green: { fg: colors.green, bg: colors.greenTint },
   purple: { fg: colors.purple, bg: colors.purpleTint },
   amber: { fg: colors.amber, bg: colors.amberTint },
+  red: { fg: colors.red, bg: colors.redTint },
 } as const;
 
 export type Tone = keyof typeof tones;

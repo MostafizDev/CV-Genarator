@@ -1,16 +1,25 @@
 import {
   ArrowRight,
   Briefcase,
+  Brain,
+  Calendar,
   ChartColumn,
   Check,
+  Coffee,
+  Cookie,
   FileCheck,
   FileText,
   GraduationCap,
   Link2,
+  Lock,
+  Mail,
   Menu,
   RefreshCw,
   Send,
+  Settings,
+  Share2,
   ShieldCheck,
+  User,
   Users,
   X,
 } from 'lucide-react';
@@ -42,11 +51,32 @@ export const brand = {
   logoMark: svgUri(logoMarkSvg),
 } as const;
 
+// --- External links ----------------------------------------------------------
+
+export const externalLinks = {
+  // TODO: replace with your profile, e.g. 'https://www.buymeacoffee.com/your-handle'.
+  // Until then the button opens the Buy Me a Coffee homepage.
+  buyMeACoffee: 'https://www.buymeacoffee.com',
+  // TODO: confirm this is a real, monitored inbox before publishing the privacy policy.
+  supportEmail: 'support@backedstory.com',
+} as const;
+
 // --- UI icons (Lucide) -----------------------------------------------------
 
 export const icons = {
   arrowRight: ArrowRight,
   check: Check,
+  coffee: Coffee,
+  calendar: Calendar,
+  lock: Lock,
+  document: FileText,
+  settings: Settings,
+  share: Share2,
+  security: ShieldCheck,
+  brain: Brain,
+  user: User,
+  cookie: Cookie,
+  mail: Mail,
   menu: Menu,
   close: X,
   student: GraduationCap,

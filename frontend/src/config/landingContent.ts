@@ -1,12 +1,13 @@
-import { images, type IconName } from './assets';
+import { externalLinks, images, type IconName } from './assets';
+import { routes } from './routes';
 import type { Tone } from '../styles/colors';
 
 /* All homepage copy and structure. Edit text here; components only render it. */
 
 export const navLinks = [
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Features', href: '#features' },
-  { label: 'Testimonials', href: '#testimonials' },
+  { label: 'How it works', href: `${routes.home}#how-it-works` },
+  { label: 'Features', href: `${routes.home}#features` },
+  { label: 'Testimonials', href: `${routes.home}#testimonials` },
 ] as const;
 
 export const hero = {
@@ -122,6 +123,13 @@ export const testimonials = {
   ],
 };
 
+export const supportProject = {
+  title: 'Enjoying Backedstory?',
+  message: 'Support the project with a coffee.',
+  button: 'Buy Me a Coffee',
+  url: externalLinks.buyMeACoffee,
+} as const;
+
 export const finalCta = {
   title: 'Ready to turn your story into opportunity?',
   subtitle: 'Join thousands of professionals who are building their future with proof.',
@@ -131,9 +139,9 @@ export const finalCta = {
 
 export const footer = {
   links: [
-    { label: 'About', href: '#how-it-works' },
-    { label: 'Contact', href: '#' },
-    { label: 'Privacy', href: '#' },
+    { label: 'About', href: `${routes.home}#how-it-works` },
+    { label: 'Contact', href: `mailto:${externalLinks.supportEmail}` },
+    { label: 'Privacy Policy', href: routes.privacy },
     { label: 'Terms', href: '#' },
   ],
   social: [

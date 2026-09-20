@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { LoginGate } from './components/LoginGate';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { routes } from './config/routes';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NewApplicationPage } from './pages/NewApplicationPage';
@@ -13,21 +15,30 @@ export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <LoginGate>
-        <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-          <Navbar />
-          <main className="flex-1 pb-16">
-            <Routes>
-              <Route path="/" element={<Navigate to="/profile" replace />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/new-application" element={<NewApplicationPage />} />
-              <Route path="/tracker" element={<TrackerPage />} />
-              <Route path="/tracker/:id" element={<ApplicationDetailPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              {/* <Route path="/templates" element={<TemplatesPage />} /> */}
-              <Route path="*" element={<Navigate to="/profile" replace />} />
-            </Routes>
-          </main>
-        </div>
+        <Routes>
+          {/* Public pages keep their own marketing layout, so they sit outside the app shell. */}
+          <Route path={routes.privacy} element={<PrivacyPage />} />
+          <Route
+            path="*"
+            element={
+              <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+                <Navbar />
+                <main className="flex-1 pb-16">
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/profile" replace />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/new-application" element={<NewApplicationPage />} />
+                    <Route path="/tracker" element={<TrackerPage />} />
+                    <Route path="/tracker/:id" element={<ApplicationDetailPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    {/* <Route path="/templates" element={<TemplatesPage />} /> */}
+                    <Route path="*" element={<Navigate to="/profile" replace />} />
+                  </Routes>
+                </main>
+              </div>
+            }
+          />
+        </Routes>
       </LoginGate>
     </BrowserRouter>
   );

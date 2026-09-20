@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithPopup } from 'firebase/auth';
 import { Link, Route, Routes } from 'react-router-dom';
 import { routes } from '../config/routes';
 import { HomePage } from '../pages/HomePage';
+import { PrivacyPage } from '../pages/PrivacyPage';
 import { Loader2 } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import {
@@ -100,6 +101,7 @@ export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children })
       <Routes>
         {/* Signed-out visitors land on the marketing homepage; its buttons lead to /login. */}
         <Route path={routes.home} element={<HomePage />} />
+        <Route path={routes.privacy} element={<PrivacyPage />} />
         <Route path={routes.register} element={<RegisterPage onAuthenticated={() => setStatus('authed')} />} />
         <Route
           path="*"

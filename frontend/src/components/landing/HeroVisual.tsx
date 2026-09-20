@@ -112,7 +112,7 @@ export const HeroVisual = () => (
         />
         <div className="flex flex-col" style={{ gap: u(2) }}>
           <span style={{ fontSize: u(16), fontWeight: typography.weights.extrabold, color: colors.text, lineHeight: 1.2 }}>
-            Mostafizur Rahman
+            Md Mostafizur Rahman
           </span>
           <span style={{ fontSize: u(11.5), fontWeight: typography.weights.medium, color: colors.muted }}>
             Software Engineer
