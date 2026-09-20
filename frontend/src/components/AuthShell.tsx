@@ -1,5 +1,6 @@
 import React from 'react';
-import { BookOpen, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { Logo } from './landing/Logo';
 
 export const authInputClass =
   'w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition';
@@ -15,10 +16,8 @@ export const AuthShell: React.FC<{
   <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-8">
     <div className="w-full max-w-sm bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-5">
       <div className="flex flex-col items-center text-center space-y-2">
-        <div className="p-3 bg-blue-950 text-white rounded-2xl">
-          <BookOpen className="w-6 h-6" />
-        </div>
-        <h1 className="text-lg font-bold text-slate-900">Backedstory</h1>
+        <h1 className="sr-only">Backedstory</h1>
+        <Logo size={40} />
         <p className="text-sm text-slate-500">{subtitle}</p>
       </div>
 

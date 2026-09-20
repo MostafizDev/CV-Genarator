@@ -6,7 +6,8 @@ from fastapi.responses import FileResponse
 import models
 import database
 import migrations
-from routers import profile, settings, generate, export, applications, auth, templates
+from routers import profile, settings, generate, export, applications, auth
+# from routers import templates
 
 # Create SQLite tables and seed built-in templates (both are no-ops if already done).
 models.Base.metadata.create_all(bind=database.engine)
@@ -45,7 +46,7 @@ app.include_router(settings.router)
 app.include_router(generate.router)
 app.include_router(export.router)
 app.include_router(applications.router)
-app.include_router(templates.router)
+# app.include_router(templates.router)
 
 
 @app.get("/healthz")
@@ -83,7 +84,7 @@ else:
                 "/api/generate",
                 "/api/export-pdf",
                 "/api/applications",
-                "/api/templates",
+                # "/api/templates",
                 "/docs",
             ],
         }

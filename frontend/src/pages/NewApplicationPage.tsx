@@ -12,7 +12,7 @@ import {
 import type { GenerateResponse, GeneratedCV, Profile } from '../types';
 import { generateCvAndCoverLetter, exportPdf, getProfile, getSettings } from '../api/client';
 import { downloadBlob, sanitizeForFilename } from '../utils/pdfExport';
-import { getDefaultTemplateId } from '../utils/templatePrefs';
+// import { getDefaultTemplateId } from '../utils/templatePrefs';
 import { CvPreviewPanel } from '../components/CvPreviewPanel';
 import { CoverLetterPreviewPanel } from '../components/CoverLetterPreviewPanel';
 
@@ -95,7 +95,8 @@ export const NewApplicationPage: React.FC = () => {
     try {
       setExportingCv(true);
       setExportError(null);
-      const blob = await exportPdf('cv', editedCv, getDefaultTemplateId('cv'));
+      // const blob = await exportPdf('cv', editedCv, getDefaultTemplateId('cv'));
+      const blob = await exportPdf('cv', editedCv);
       downloadBlob(blob, `CV_${sanitizeForFilename(company)}.pdf`);
     } catch (err: any) {
       setExportError(err.message || 'Failed to export CV as PDF.');
@@ -109,7 +110,8 @@ export const NewApplicationPage: React.FC = () => {
     try {
       setExportingCoverLetter(true);
       setExportError(null);
-      const blob = await exportPdf('cover_letter', editedCoverLetter, getDefaultTemplateId('cover_letter'));
+      // const blob = await exportPdf('cover_letter', editedCoverLetter, getDefaultTemplateId('cover_letter'));
+      const blob = await exportPdf('cover_letter', editedCoverLetter);
       downloadBlob(blob, `CoverLetter_${sanitizeForFilename(company)}.pdf`);
     } catch (err: any) {
       setExportError(err.message || 'Failed to export cover letter as PDF.');

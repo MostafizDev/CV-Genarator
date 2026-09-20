@@ -620,6 +620,7 @@ def test_generate_with_no_default_provider_but_override(client, monkeypatch):
     assert gen_res.json()["application_id"] is not None
 
 
+@pytest.mark.skip(reason="Templates feature is commented out")
 def test_templates_list_includes_seeded_builtins(client):
     res = client.get("/api/templates")
     assert res.status_code == 200
@@ -632,6 +633,7 @@ def test_templates_list_includes_seeded_builtins(client):
     assert {"Default", "Navy Sidebar", "Teal Header", "Minimalist"}.issubset(cv_builtin_names)
 
 
+@pytest.mark.skip(reason="Templates feature is commented out")
 def test_templates_preview_renders_sample_data(client):
     res = client.post(
         "/api/templates/preview",
@@ -648,6 +650,7 @@ def test_templates_preview_renders_sample_data(client):
     assert "Kelly Blackwell" in res2.json()["html"]
 
 
+@pytest.mark.skip(reason="Templates feature is commented out")
 def test_templates_preview_rejects_unknown_variable(client):
     res = client.post(
         "/api/templates/preview",
@@ -656,6 +659,7 @@ def test_templates_preview_rejects_unknown_variable(client):
     assert res.status_code == 400
 
 
+@pytest.mark.skip(reason="Templates feature is commented out")
 def test_templates_create_list_and_delete_custom(client):
     create_res = client.post(
         "/api/templates",
@@ -681,6 +685,7 @@ def test_templates_create_list_and_delete_custom(client):
     assert all(t["id"] != template_id for t in client.get("/api/templates").json())
 
 
+@pytest.mark.skip(reason="Templates feature is commented out")
 def test_templates_reject_unknown_variable(client):
     res = client.post(
         "/api/templates",
@@ -694,12 +699,14 @@ def test_templates_reject_unknown_variable(client):
     assert "secret_data" in res.json()["detail"]
 
 
+@pytest.mark.skip(reason="Templates feature is commented out")
 def test_templates_cannot_delete_builtin(client):
     builtin = next(t for t in client.get("/api/templates").json() if not t["is_custom"])
     res = client.delete(f"/api/templates/{builtin['id']}")
     assert res.status_code == 400
 
 
+@pytest.mark.skip(reason="Templates feature is commented out")
 def test_export_pdf_uses_custom_template(client):
     create_res = client.post(
         "/api/templates",

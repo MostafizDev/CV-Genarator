@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
-import { NavLink, Link, useLocation } from 'react-router-dom';
-import { User, Sparkles, Settings, BookOpen, ClipboardList, Cpu, LogOut, LayoutTemplate } from 'lucide-react';
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
+import { routes } from '../config/routes';
+import { User, Sparkles, Settings, BookOpen, ClipboardList, Cpu, LogOut } from 'lucide-react';
+// import { LayoutTemplate } from 'lucide-react';
 import { auth } from '../firebase';
 import { getSettings, getStoredSession, clearStoredSession, AUTH_REQUIRED_EVENT } from '../api/client';
 
@@ -15,6 +17,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
   const session = getStoredSession();
 
@@ -22,7 +25,7 @@ export const Navbar: React.FC = () => {
     { to: '/profile', label: 'Profile', icon: User },
     { to: '/new-application', label: 'New Application', icon: Sparkles },
     { to: '/tracker', label: 'Tracker', icon: ClipboardList },
-    { to: '/templates', label: 'Templates', icon: LayoutTemplate },
+    // { to: '/templates', label: 'Templates', icon: LayoutTemplate },
     { to: '/settings', label: 'Settings', icon: Settings },
   ];
 
@@ -30,6 +33,7 @@ export const Navbar: React.FC = () => {
     await signOut(auth);
     clearStoredSession();
     window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
+    navigate(routes.home);
   };
 
   useEffect(() => {

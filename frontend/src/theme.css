@@ -1,41 +1,36 @@
 /*
- * Backedstory brand theme -- the single source of truth for this app's colors.
+ * Backedstory brand theme -- maps Tailwind's color names onto the design tokens.
  *
- * Tailwind v4's default color palette uses the OKLCH color space, which does NOT
- * match the classic Tailwind v3 hex values (e.g. its `blue-600` is a different,
- * lighter blue than the hex #2563EB you'd expect). This file pins the exact
- * Backedstory brand hex values onto the Tailwind color variables the app already
- * uses everywhere (bg-blue-600, text-green-700, border-slate-200, etc.), so every
- * component gets the correct color without having to rename every class.
+ * The actual values live in styles/colors.ts (and styles/typography.ts), which is the
+ * single source of truth. At startup, styles/tokens.ts publishes them as --brand-* CSS
+ * variables; the entries below point the Tailwind color variables the app already uses
+ * everywhere (bg-blue-600, text-green-700, border-slate-200, ...) at those variables.
+ * To re-theme the app, change styles/colors.ts -- nowhere else.
  *
- * To re-theme the app, change the values here -- nowhere else.
+ * (Tailwind v4's default palette is OKLCH and doesn't match the classic hex values, which
+ * is why the names are pinned here rather than left at their defaults.)
  */
 @theme {
-  /* Deep Navy -- primary brand identity: logo, main headings, nav, dark surfaces */
-  --color-blue-950: #172554;
+  --color-blue-950: var(--brand-navy);
 
-  /* Electric Blue -- primary buttons, CTAs, links, active/selected states */
-  --color-blue-600: #2563eb;
-  --color-blue-700: #1d4ed8; /* hover */
-  --color-blue-800: #1e40af; /* active */
+  --color-blue-600: var(--brand-blue);
+  --color-blue-700: var(--brand-blue-hover);
+  --color-blue-800: var(--brand-blue-active);
 
-  /* Proof Green -- verified/evidence/"Backed" success states */
-  --color-green-600: #16a34a;
-  --color-green-700: #15803d; /* hover */
-  --color-green-100: #dcfce7; /* success background */
+  --color-green-600: var(--brand-green);
+  --color-green-700: var(--brand-green-hover);
+  --color-green-100: var(--brand-green-tint);
 
-  /* Error Red */
-  --color-red-600: #dc2626;
-  --color-red-700: #b91c1c; /* hover */
+  --color-red-600: var(--brand-red);
+  --color-red-700: var(--brand-red-hover);
 
-  /* Warning Amber */
-  --color-amber-600: #d97706;
-  --color-amber-700: #b45309; /* hover */
+  --color-amber-600: var(--brand-amber);
+  --color-amber-700: var(--brand-amber-hover);
 
-  /* Soft Background / Dark Slate (primary text) / Slate Gray (secondary text) /
-     Light Slate (borders & dividers) */
-  --color-slate-50: #f8fafc;
-  --color-slate-900: #0f172a;
-  --color-slate-500: #64748b;
-  --color-slate-200: #e2e8f0;
+  --color-slate-50: var(--brand-background);
+  --color-slate-900: var(--brand-text);
+  --color-slate-500: var(--brand-muted);
+  --color-slate-200: var(--brand-border);
+
+  --font-sans: var(--brand-font-sans);
 }

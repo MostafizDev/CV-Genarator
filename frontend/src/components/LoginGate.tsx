@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup } from 'firebase/auth';
 import { Link, Route, Routes } from 'react-router-dom';
+import { routes } from '../config/routes';
+import { HomePage } from '../pages/HomePage';
 import { Loader2 } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import {
@@ -96,7 +98,9 @@ export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children })
   if (status === 'locked') {
     return (
       <Routes>
-        <Route path="/register" element={<RegisterPage onAuthenticated={() => setStatus('authed')} />} />
+        {/* Signed-out visitors land on the marketing homepage; its buttons lead to /login. */}
+        <Route path={routes.home} element={<HomePage />} />
+        <Route path={routes.register} element={<RegisterPage onAuthenticated={() => setStatus('authed')} />} />
         <Route
           path="*"
           element={
@@ -175,7 +179,7 @@ export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children })
 
               <p className="text-center text-xs text-slate-500">
                 New here?{' '}
-                <Link to="/register" className="font-semibold text-blue-700 hover:text-blue-900">
+                <Link to={routes.register} className="font-semibold text-blue-700 hover:text-blue-900">
                   Create an account
                 </Link>
               </p>

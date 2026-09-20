@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, Copy, Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
 import { AuthShell, authInputClass, authPrimaryButtonClass } from '../components/AuthShell';
 import { registerAccount } from '../api/client';
+import { routes } from '../config/routes';
 import { generatePassword } from '../utils/generatePassword';
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -164,7 +165,7 @@ export const RegisterPage: React.FC<{ onAuthenticated: () => void }> = ({ onAuth
 
       <p className="text-center text-xs text-slate-500">
         Already have an account?{' '}
-        <Link to="/" className="font-semibold text-blue-700 hover:text-blue-900">
+        <Link to={routes.login} className="font-semibold text-blue-700 hover:text-blue-900">
           Sign in
         </Link>
       </p>

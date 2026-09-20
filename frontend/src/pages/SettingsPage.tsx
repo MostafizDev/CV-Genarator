@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+// import { Link } from 'react-router-dom';
 import {
   Key,
   CheckCircle2,
@@ -14,16 +14,20 @@ import {
   RefreshCw,
   Star,
   PlugZap,
-  LayoutTemplate,
+  // LayoutTemplate,
 } from 'lucide-react';
-import type { ProviderSetting, Template, TemplateKind } from '../types';
-import { getSettings, saveSetting, testProviderConnection, getTemplates } from '../api/client';
-import { getDefaultTemplateId, setDefaultTemplateId } from '../utils/templatePrefs';
+import type { ProviderSetting } from '../types';
+import { getSettings, saveSetting, testProviderConnection } from '../api/client';
+// import type { Template, TemplateKind } from '../types';
+// import { getTemplates } from '../api/client';
+// import { getDefaultTemplateId, setDefaultTemplateId } from '../utils/templatePrefs';
 
+/*
 const TEMPLATE_KINDS: { id: TemplateKind; label: string }[] = [
   { id: 'cv', label: 'CV Template' },
   { id: 'cover_letter', label: 'Cover Letter Template' },
 ];
+*/
 
 interface ProviderMeta {
   id: string;
@@ -101,6 +105,7 @@ export const SettingsPage: React.FC = () => {
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  /*
   const [templates, setTemplates] = useState<Template[]>([]);
   const [defaultTemplateIds, setDefaultTemplateIds] = useState<Record<TemplateKind, number | null>>({
     cv: null,
@@ -126,6 +131,7 @@ export const SettingsPage: React.FC = () => {
     setDefaultTemplateId(kind, id);
     setDefaultTemplateIds((prev) => ({ ...prev, [kind]: id }));
   };
+  */
 
   const loadSettings = useCallback(async () => {
     try {
@@ -421,7 +427,8 @@ export const SettingsPage: React.FC = () => {
         })}
       </div>
 
-      {/* Default Template Picker */}
+      {/*
+      Default Template Picker
       <div className="mt-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-base font-semibold text-slate-900 flex items-center space-x-2">
@@ -464,6 +471,7 @@ export const SettingsPage: React.FC = () => {
           })}
         </div>
       </div>
+      */}
     </div>
   );
 };
