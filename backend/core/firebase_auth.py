@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 from core import local_auth
+from core.rls import find_user_id_by_firebase_uid, load_user
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +62,10 @@ def verify_firebase_token(authorization: str = Header(default="")) -> dict:
     _init_firebase_app()
     try:
         return firebase_auth_sdk.verify_id_token(token)
-    except Exception:
-        logger.exception("Firebase ID token verification failed")
+    except Exception as exc:
+        # Log the reason (expired, wrong project, ...) but never the exception text or
+        # traceback: for malformed tokens those contain the token itself.
+        logger.warning("Firebase ID token verification failed: %s", type(exc).__name__)
         raise HTTPException(status_code=401, detail="Invalid or expired session. Please sign in again.")
 
 
@@ -72,7 +75,7 @@ def get_current_user(
     # Email/password accounts send our own JWT; Google accounts send a Firebase ID token.
     local_user_id = local_auth.decode_access_token(_extract_bearer_token(authorization))
     if local_user_id:
-        user = db.query(models.User).get(local_user_id)
+        user = load_user(db, local_user_id)
         if not user:
             raise HTTPException(status_code=401, detail="User not found. Please sign in again.")
         return user
@@ -85,7 +88,8 @@ def get_current_user(
     claims = verify_firebase_token(authorization)
     # Look up by firebase_uid, not id: a Google login linked to an email/password account
     # resolves to that account's row, whose id is not the Firebase UID.
-    user = db.query(models.User).filter(models.User.firebase_uid == claims["uid"]).first()
+    user_id = find_user_id_by_firebase_uid(db, claims["uid"])
+    user = load_user(db, user_id) if user_id else None
     if not user:
         raise HTTPException(status_code=401, detail="User not found. Please sign in again.")
     return user

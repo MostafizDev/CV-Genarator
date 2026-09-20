@@ -4,6 +4,7 @@ backend/test_app.db
 *.db
 .env
 .env.*
+!.env.example
 backend/firebase-service-account.json
 
 # Python
@@ -27,3 +28,6 @@ frontend/dist-ssr/
 
 # Auto-generated signing secret for email/password login tokens (dev fallback for JWT_SECRET)
 backend/.jwt_secret
+
+# Local dev Postgres cluster created by backend/scripts/dev_db.sh
+backend/.pgdata/

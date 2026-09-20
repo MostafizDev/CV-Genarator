@@ -262,14 +262,19 @@ def test_settings_save_and_get(client):
     assert post_res.status_code == 200
     saved = post_res.json()
     assert saved["provider"] == "openai"
-    assert saved["api_key"] == "sk-test-mock-key-12345"
+    # The API key is write-only: the response says one is saved, never what it is.
+    assert "api_key" not in saved
+    assert saved["has_api_key"] is True
+    assert saved["api_key_hint"] == "••••2345"
     assert saved["is_default"] is True
 
     get_res = client.get("/api/settings")
     assert get_res.status_code == 200
+    assert "sk-test-mock-key-12345" not in get_res.text
     settings = get_res.json()
     assert len(settings) >= 1
     assert settings[0]["provider"] == "openai"
+    assert settings[0]["has_api_key"] is True
 
 
 def test_groq_settings_save_and_routing(client):

@@ -1,17 +1,23 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 import models
 import database
 import migrations
+from core import crypto
 from routers import profile, settings, generate, export, applications, auth
 # from routers import templates
 
-# Create SQLite tables and seed built-in templates (both are no-ops if already done).
-models.Base.metadata.create_all(bind=database.engine)
-migrations.run_migrations(database.engine)
+# Refuse to start without an encryption key rather than failing on a user's first request.
+crypto.assert_configured()
+
+# Create tables, seed built-in templates and apply row level security (all idempotent).
+# Schema changes use the owner connection; requests use the restricted runtime one.
+models.Base.metadata.create_all(bind=database.migration_engine)
+migrations.run_migrations(database.migration_engine, database.engine)
 
 app = FastAPI(
     title="Backedstory API",
@@ -39,6 +45,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # Tell browsers to only ever use HTTPS for this site (the host terminates TLS and
+    # forwards X-Forwarded-Proto). Skipped on plain-http localhost development.
+    if request.headers.get("x-forwarded-proto") == "https" or request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # API responses carry personal data; keep them out of browser and proxy caches.
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    # FastAPI's default 422 body echoes each rejected value back ("input"), which would
+    # return passwords and personal data. Keep only where and why it failed.
+    errors = [{"loc": e.get("loc"), "msg": e.get("msg"), "type": e.get("type")} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
+
 # Register API Routers
 app.include_router(auth.router)
 app.include_router(profile.router)
@@ -63,12 +96,17 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 if os.path.isdir(STATIC_DIR):
 
+    _STATIC_ROOT = os.path.realpath(STATIC_DIR)
+
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str):
-        candidate = os.path.join(STATIC_DIR, full_path)
-        if full_path and os.path.isfile(candidate):
+        candidate = os.path.realpath(os.path.join(_STATIC_ROOT, full_path))
+        # Only serve files that really live inside static/ -- a path like "../app.db"
+        # (or its %2e%2e-encoded form) must never reach the database or secrets.
+        inside_static = candidate == _STATIC_ROOT or candidate.startswith(_STATIC_ROOT + os.sep)
+        if full_path and inside_static and os.path.isfile(candidate):
             return FileResponse(candidate)
-        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        return FileResponse(os.path.join(_STATIC_ROOT, "index.html"))
 
 else:
 

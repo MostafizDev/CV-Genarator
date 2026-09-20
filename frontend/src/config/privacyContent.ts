@@ -62,7 +62,7 @@ export const policySections: {
     icon: 'cookie',
     tone: 'red',
     title: 'Cookies and Tracking',
-    body: 'We use cookies to improve your experience, analyze usage, and ensure the proper functioning of our website. You can manage your cookie preferences in your browser settings.',
+    body: 'Backedstory uses only essential cookies and similar browser storage today: they keep you signed in and remember your cookie choice. We do not currently use analytics or advertising cookies, and we will ask before adding any. You can change your choice at any time using Cookie Settings in the footer.',
   },
   {
     icon: 'mail',

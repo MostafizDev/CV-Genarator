@@ -1,16 +1,15 @@
 import type { CSSProperties } from 'react';
 
 /*
- * Backedstory typography -- Nunito everywhere, plus one handwritten accent face.
+ * Backedstory typography -- Nunito everywhere, plus one handwritten accent face. Both are
+ * self-hosted via @fontsource (imported in main.tsx), not loaded from Google Fonts.
  * Components spread the entries of `styles` into their `style` prop so font size,
  * weight and spacing come from here and nowhere else. Sizes use clamp() so type scales
  * smoothly between mobile and desktop without per-breakpoint overrides.
  */
 export const typography = {
-  fontFamily: "'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
+  fontFamily: "'Nunito Variable', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
   handwritingFamily: "'Caveat', 'Comic Sans MS', cursive",
-  googleFontsUrl:
-    'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Caveat:wght@600&display=swap',
 
   weights: {
     regular: 400,

@@ -41,7 +41,7 @@ export const Navbar: React.FC = () => {
       try {
         const settings = await getSettings();
         const active = settings.find((s) => s.is_default) || settings[0];
-        setActiveProvider(active && active.api_key ? active.provider : null);
+        setActiveProvider(active && active.has_api_key ? active.provider : null);
       } catch {
         setActiveProvider(null);
       }

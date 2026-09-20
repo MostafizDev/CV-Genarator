@@ -1,6 +1,7 @@
 import type {
   Profile,
   ProviderSetting,
+  ProviderSettingInput,
   GenerateRequest,
   GenerateResponse,
   ApplicationListItem,
@@ -189,9 +190,9 @@ export async function getSettings(): Promise<ProviderSetting[]> {
   return response.json();
 }
 
-export async function getAvailableModels(provider: string, apiKey?: string): Promise<string[]> {
+// Lists models using the key already saved on the server. Keys are never put in a URL.
+export async function getAvailableModels(provider: string): Promise<string[]> {
   const params = new URLSearchParams({ provider });
-  if (apiKey) params.append('api_key', apiKey);
   const response = await apiFetch(`/settings/models?${params.toString()}`);
   if (!response.ok) {
     return [];
@@ -200,7 +201,7 @@ export async function getAvailableModels(provider: string, apiKey?: string): Pro
   return data.models || [];
 }
 
-export async function saveSetting(setting: Omit<ProviderSetting, 'id'>): Promise<ProviderSetting> {
+export async function saveSetting(setting: ProviderSettingInput): Promise<ProviderSetting> {
   const response = await apiFetch('/settings', {
     method: 'POST',
     headers: jsonHeaders(),

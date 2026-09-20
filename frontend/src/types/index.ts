@@ -46,8 +46,19 @@ export interface Profile {
   education: Education[];
 }
 
+/** What the server returns for a saved provider. The API key itself is never sent back. */
 export interface ProviderSetting {
   id?: number;
+  provider: string;
+  has_api_key: boolean;
+  /** e.g. "••••1234" -- the last four characters, for recognising which key is saved. */
+  api_key_hint: string;
+  model: string;
+  is_default: boolean;
+}
+
+/** What the browser sends when saving. A blank api_key keeps the key already saved. */
+export interface ProviderSettingInput {
   provider: string;
   api_key: string;
   model: string;

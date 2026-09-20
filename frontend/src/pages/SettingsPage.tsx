@@ -143,7 +143,8 @@ export const SettingsPage: React.FC = () => {
       for (const meta of PROVIDER_META) {
         const saved = settings.find((s) => s.provider === meta.id);
         nextForm[meta.id] = {
-          apiKey: saved?.api_key || '',
+          // The saved key is never sent to the browser, so the field always starts empty.
+          apiKey: '',
           model: saved?.model || meta.modelPlaceholder,
         };
       }
@@ -174,7 +175,8 @@ export const SettingsPage: React.FC = () => {
 
   const handleSave = async (providerId: string) => {
     const form = formState[providerId];
-    if (!form?.apiKey.trim()) {
+    const alreadySaved = savedSettings.some((s) => s.provider === providerId && s.has_api_key);
+    if (!form?.apiKey.trim() && !alreadySaved) {
       showToast(`Enter an API key for ${providerId} before saving.`, 'error');
       return;
     }
@@ -211,7 +213,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const activeProviderSetting = savedSettings.find((s) => s.is_default) || savedSettings[0];
-  const hasConfiguredKey = activeProviderSetting && activeProviderSetting.api_key?.trim().length > 0;
+  const hasConfiguredKey = Boolean(activeProviderSetting?.has_api_key);
 
   if (loading) {
     return (
@@ -279,7 +281,8 @@ export const SettingsPage: React.FC = () => {
       <div className="mt-6 space-y-5">
         {PROVIDER_META.map((meta) => {
           const form = formState[meta.id] || { apiKey: '', model: meta.modelPlaceholder };
-          const isSaved = savedSettings.some((s) => s.provider === meta.id && s.api_key);
+          const savedSetting = savedSettings.find((s) => s.provider === meta.id);
+          const isSaved = Boolean(savedSetting?.has_api_key);
           const result = testResults[meta.id];
 
           return (
@@ -334,7 +337,12 @@ export const SettingsPage: React.FC = () => {
                       type={showKey[meta.id] ? 'text' : 'password'}
                       value={form.apiKey}
                       onChange={(e) => updateForm(meta.id, 'apiKey', e.target.value)}
-                      placeholder={meta.keyPlaceholder}
+                      placeholder={
+                        isSaved
+                          ? `${savedSetting?.api_key_hint} saved — enter a new key to replace it`
+                          : meta.keyPlaceholder
+                      }
+                      autoComplete="off"
                       className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                     />
                     <button
@@ -402,7 +410,7 @@ export const SettingsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleTest(meta.id)}
-                  disabled={testing[meta.id] || !form.apiKey.trim()}
+                  disabled={testing[meta.id] || (!form.apiKey.trim() && !isSaved)}
                   className="flex items-center space-x-1.5 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {testing[meta.id] ? (

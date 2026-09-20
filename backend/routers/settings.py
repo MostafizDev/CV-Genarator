@@ -19,6 +19,19 @@ DEFAULT_MODELS = {
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
 
+def _public_setting(setting: models.ProviderSetting) -> schemas.ProviderSettingSchema:
+    """Never expose the stored API key -- only that one exists and its last four characters."""
+    key = (setting.api_key or "").strip()
+    return schemas.ProviderSettingSchema(
+        id=setting.id,
+        provider=setting.provider,
+        has_api_key=bool(key),
+        api_key_hint=f"••••{key[-4:]}" if len(key) >= 8 else ("••••" if key else ""),
+        model=setting.model,
+        is_default=setting.is_default,
+    )
+
+
 @router.get("", response_model=List[schemas.ProviderSettingSchema])
 def get_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     settings = db.query(models.ProviderSetting).filter(models.ProviderSetting.user_id == current_user.id).all()
@@ -34,31 +47,31 @@ def get_settings(db: Session = Depends(get_db), current_user: models.User = Depe
         db.add(default_setting)
         db.commit()
         db.refresh(default_setting)
-        return [default_setting]
-    return settings
+        return [_public_setting(default_setting)]
+    return [_public_setting(s) for s in settings]
 
 
 @router.get("/models")
 def get_available_models(
     provider: str = Query(..., description="AI Provider (groq or openai)"),
-    api_key: Optional[str] = Query(None, description="API Key to test, or uses saved key"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    # Uses the saved key only. An API key must never travel in a URL: query strings end up
+    # in access logs and browser history. (To try an unsaved key, use POST /{provider}/test.)
     provider_name = provider.lower().strip()
-    key = api_key.strip() if api_key else ""
+    key = ""
 
-    if not key:
-        saved = (
-            db.query(models.ProviderSetting)
-            .filter(
-                models.ProviderSetting.user_id == current_user.id,
-                models.ProviderSetting.provider == provider_name,
-            )
-            .first()
+    saved = (
+        db.query(models.ProviderSetting)
+        .filter(
+            models.ProviderSetting.user_id == current_user.id,
+            models.ProviderSetting.provider == provider_name,
         )
-        if saved and saved.api_key:
-            key = saved.api_key.strip()
+        .first()
+    )
+    if saved and saved.api_key:
+        key = saved.api_key.strip()
 
     if not key:
         return {"models": []}
@@ -118,23 +131,26 @@ def save_setting(
             {models.ProviderSetting.is_default: False}
         )
 
+    new_key = data.api_key.strip()
+
     if not setting:
         setting = models.ProviderSetting(
             user_id=current_user.id,
             provider=provider_name,
-            api_key=data.api_key.strip(),
+            api_key=new_key,
             model=data.model.strip() or default_model,
             is_default=data.is_default,
         )
         db.add(setting)
     else:
-        setting.api_key = data.api_key.strip()
+        if new_key:
+            setting.api_key = new_key
         setting.model = data.model.strip() or default_model
         setting.is_default = data.is_default
 
     db.commit()
     db.refresh(setting)
-    return setting
+    return _public_setting(setting)
 
 
 def _test_provider_key(provider_name: str, api_key: str, model: str) -> None:

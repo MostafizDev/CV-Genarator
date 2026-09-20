@@ -43,7 +43,7 @@ export const NewApplicationPage: React.FC = () => {
       try {
         const [profileData, settingsData] = await Promise.all([getProfile(), getSettings()]);
         setProfile(profileData);
-        const withKeys = settingsData.filter((s) => s.api_key && s.api_key.trim().length > 0);
+        const withKeys = settingsData.filter((s) => s.has_api_key);
         setHasConfiguredProvider(withKeys.length > 0);
       } catch {
         // Non-fatal: generation will still surface a clear error if something's missing

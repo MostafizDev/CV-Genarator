@@ -4,6 +4,9 @@ import { Navbar } from './components/Navbar';
 import { LoginGate } from './components/LoginGate';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { routes } from './config/routes';
+import { ConsentProvider } from './consent/ConsentProvider';
+import { CookieBanner } from './consent/CookieBanner';
+import { CookiePreferences } from './consent/CookiePreferences';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NewApplicationPage } from './pages/NewApplicationPage';
@@ -13,6 +16,7 @@ import { ApplicationDetailPage } from './pages/ApplicationDetailPage';
 
 export const App: React.FC = () => {
   return (
+    <ConsentProvider>
     <BrowserRouter>
       <LoginGate>
         <Routes>
@@ -40,7 +44,10 @@ export const App: React.FC = () => {
           />
         </Routes>
       </LoginGate>
+      <CookieBanner />
+      <CookiePreferences />
     </BrowserRouter>
+    </ConsentProvider>
   );
 };
 

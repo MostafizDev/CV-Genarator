@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -8,6 +9,7 @@ import models
 import schemas
 from core import local_auth
 from core.firebase_auth import get_current_user, verify_firebase_token
+from core.rls import email_account_kind, find_user_id_by_email, find_user_id_by_firebase_uid, load_user, set_rls_user
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -29,15 +31,18 @@ def sync_user(claims: dict = Depends(verify_firebase_token), db: Session = Depen
     email = (claims.get("email") or "").strip().lower()
     name = claims.get("name") or ""
 
-    user = db.query(models.User).filter(models.User.firebase_uid == uid).first()
+    user_id = find_user_id_by_firebase_uid(db, uid)
+    user = load_user(db, user_id) if user_id else None
+
     if user is None and email:
-        user = db.query(models.User).filter(models.User.email == email).first()
-        if user is not None:
+        existing_id = find_user_id_by_email(db, email)
+        if existing_id:
             if not claims.get("email_verified"):
                 raise HTTPException(
                     status_code=409,
                     detail="An account with this email already exists. Sign in with your password instead.",
                 )
+            user = load_user(db, existing_id)
             user.firebase_uid = uid
             # The password was set on an email nobody had verified, so it can't be
             # trusted to belong to this person -- drop it so a stranger who pre-registered
@@ -46,6 +51,7 @@ def sync_user(claims: dict = Depends(verify_firebase_token), db: Session = Depen
 
     if user is None:
         first, last = _split_name(name)
+        set_rls_user(db, uid)
         user = models.User(
             id=uid, firebase_uid=uid, email=email, display_name=name, first_name=first, last_name=last
         )
@@ -63,20 +69,22 @@ def sync_user(claims: dict = Depends(verify_firebase_token), db: Session = Depen
 @router.post("/register", response_model=schemas.AuthTokenResponse, status_code=201)
 def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
     """Creates an email/password account (no email verification) and signs it in."""
-    existing = db.query(models.User).filter(models.User.email == payload.email).first()
-    if existing:
+    existing_kind = email_account_kind(db, payload.email)
+    if existing_kind:
         # Never attach a password to an existing account here: the email isn't verified,
         # so anyone could claim someone else's Google account this way.
         detail = (
             "An account with this email already exists. Try signing in."
-            if existing.password_hash
+            if existing_kind == "password"
             else "This email is already registered with Google. Use \"Sign in with Google\"."
         )
         raise HTTPException(status_code=409, detail=detail)
 
     full_name = f"{payload.first_name} {payload.last_name}"
+    user_id = uuid.uuid4().hex
+    set_rls_user(db, user_id)
     user = models.User(
-        id=uuid.uuid4().hex,
+        id=user_id,
         email=payload.email,
         display_name=full_name,
         first_name=payload.first_name,
@@ -86,18 +94,20 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.flush()
     db.add(models.Profile(user_id=user.id, email=payload.email, full_name=full_name))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Lost a race with another registration for the same email.
+        db.rollback()
+        raise HTTPException(status_code=409, detail="An account with this email already exists. Try signing in.")
     db.refresh(user)
     return {"token": local_auth.create_access_token(user.id), "user": user}
 
 
 @router.post("/login", response_model=schemas.AuthTokenResponse)
 def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = (
-        db.query(models.User)
-        .filter(models.User.email == payload.email, models.User.password_hash.isnot(None))
-        .first()
-    )
+    user_id = find_user_id_by_email(db, payload.email, password_accounts_only=True)
+    user = load_user(db, user_id) if user_id else None
     # Always run one scrypt verification, even for an unknown email, so timing doesn't
     # reveal which emails have accounts.
     stored_hash = user.password_hash if user else local_auth.DUMMY_PASSWORD_HASH

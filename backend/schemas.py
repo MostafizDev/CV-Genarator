@@ -83,17 +83,20 @@ class ProfileSaveRequest(ProfileBase):
 
 
 class ProviderSettingSchema(BaseModel):
+    """What the browser sees of a saved provider. The API key itself is write-only: it is
+    never sent back, only whether one is saved and its last four characters."""
+
     id: Optional[int] = None
     provider: str = "openai"
-    api_key: str = ""
+    has_api_key: bool = False
+    api_key_hint: str = ""
     model: str = "gpt-4o-mini"
     is_default: bool = False
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class ProviderSettingCreate(BaseModel):
     provider: str = "openai"
+    # Blank means "keep the key that's already saved".
     api_key: str = ""
     model: str = "gpt-4o-mini"
     is_default: bool = False

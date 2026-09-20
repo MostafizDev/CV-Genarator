@@ -4,7 +4,8 @@ import { colors } from '../../styles/colors';
 import { typography } from '../../styles/typography';
 import { Container } from './Container';
 import { Logo } from './Logo';
-import { TextLink } from './TextLink';
+import { useConsent } from '../../consent/ConsentContext';
+import { TextButton, TextLink } from './TextLink';
 import { useHover } from './useHover';
 
 const SocialLink = ({ label, icon, href }: { label: string; icon: keyof typeof brandIcons; href: string }) => {
@@ -24,7 +25,9 @@ const SocialLink = ({ label, icon, href }: { label: string; icon: keyof typeof b
   );
 };
 
-export const Footer = () => (
+export const Footer = () => {
+  const { openPreferences } = useConsent();
+  return (
   <footer style={{ backgroundColor: colors.white, borderTop: `1px solid ${colors.border}` }}>
     <Container className="py-10">
       <div className="flex flex-col items-center gap-8 md:flex-row md:justify-between">
@@ -36,6 +39,7 @@ export const Footer = () => (
               {link.label}
             </TextLink>
           ))}
+          <TextButton onClick={openPreferences}>Cookie Settings</TextButton>
         </nav>
 
         <div className="flex items-center gap-3">
@@ -56,4 +60,5 @@ export const Footer = () => (
       </div>
     </Container>
   </footer>
-);
+  );
+};

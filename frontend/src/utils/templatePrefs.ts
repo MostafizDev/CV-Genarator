@@ -1,4 +1,5 @@
 import type { TemplateKind } from '../types';
+import { hasConsent } from '../consent/consentStore';
 
 // Which custom (or built-in) template a user wants used by default for each kind of
 // export. Stored client-side rather than as a backend column, consistent with how
@@ -10,6 +11,7 @@ const STORAGE_KEYS: Record<TemplateKind, string> = {
 };
 
 export function getDefaultTemplateId(kind: TemplateKind): number | null {
+  if (!hasConsent('preferences')) return null;
   const raw = localStorage.getItem(STORAGE_KEYS[kind]);
   if (!raw) return null;
   const parsed = Number(raw);
@@ -17,6 +19,8 @@ export function getDefaultTemplateId(kind: TemplateKind): number | null {
 }
 
 export function setDefaultTemplateId(kind: TemplateKind, id: number | null) {
+  // Remembering a choice on this device is a "preferences" cookie: only with consent.
+  if (!hasConsent('preferences')) return;
   if (id === null) {
     localStorage.removeItem(STORAGE_KEYS[kind]);
   } else {

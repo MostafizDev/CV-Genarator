@@ -9,7 +9,8 @@ type Size = 'md' | 'lg';
 
 type Destination =
   | { to: string; href?: never } // in-app route
-  | { href: string; to?: never }; // external URL, opened in a new tab
+  | { href: string; to?: never } // external URL, opened in a new tab
+  | { to?: never; href?: never; onClick: () => void }; // plain action, no navigation
 
 type ButtonProps = Destination & {
   variant?: Variant;
@@ -62,9 +63,7 @@ export const Button = ({
     children,
   };
 
-  return href !== undefined ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" {...shared} />
-  ) : (
-    <Link to={to} {...shared} />
-  );
+  if (href !== undefined) return <a href={href} target="_blank" rel="noopener noreferrer" {...shared} />;
+  if (to !== undefined) return <Link to={to} {...shared} />;
+  return <button type="button" {...shared} />;
 };
