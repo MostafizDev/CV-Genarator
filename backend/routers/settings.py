@@ -7,6 +7,7 @@ import schemas
 from openai import OpenAI
 from groq import Groq
 from core.firebase_auth import get_current_user
+from services import model_catalog, usage as usage_service
 
 DEFAULT_MODELS = {
     "groq": "openai/gpt-oss-120b",
@@ -51,16 +52,18 @@ def get_settings(db: Session = Depends(get_db), current_user: models.User = Depe
     return [_public_setting(s) for s in settings]
 
 
-@router.get("/models")
+@router.get("/models", response_model=schemas.ModelListResponse)
 def get_available_models(
-    provider: str = Query(..., description="AI Provider (groq or openai)"),
+    provider: str = Query(..., description="AI provider, e.g. groq, openai, anthropic, gemini, deepseek"),
+    refresh: bool = Query(False, description="Skip the short server-side cache"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Uses the saved key only. An API key must never travel in a URL: query strings end up
-    # in access logs and browser history. (To try an unsaved key, use POST /{provider}/test.)
+    """Models the provider offers this user's saved key. Uses the saved key only -- an API key
+    must never travel in a URL (query strings end up in access logs and browser history)."""
     provider_name = provider.lower().strip()
-    key = ""
+    if provider_name not in DEFAULT_MODELS:
+        raise HTTPException(status_code=404, detail=f"Unknown provider '{provider_name}'.")
 
     saved = (
         db.query(models.ProviderSetting)
@@ -70,41 +73,8 @@ def get_available_models(
         )
         .first()
     )
-    if saved and saved.api_key:
-        key = saved.api_key.strip()
-
-    if not key:
-        return {"models": []}
-
-    try:
-        if provider_name == "groq":
-            client = Groq(api_key=key)
-            models_res = client.models.list()
-            # Filter text generation models and sort
-            excluded_prefixes = ("whisper", "canopylabs", "meta-llama/llama-prompt-guard")
-            models_list = [
-                m.id
-                for m in models_res.data
-                if not any(m.id.startswith(p) for p in excluded_prefixes)
-            ]
-            return {"models": models_list}
-        elif provider_name == "openai":
-            client = OpenAI(api_key=key)
-            models_res = client.models.list()
-            # Filter chat models
-            models_list = [
-                m.id
-                for m in models_res.data
-                if "gpt" in m.id or "o1" in m.id or "o3" in m.id
-            ]
-            return {"models": models_list}
-        else:
-            return {"models": []}
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Failed to fetch models from {provider_name}: {str(e)}",
-        )
+    api_key = (saved.api_key or "").strip() if saved else ""
+    return model_catalog.list_models(current_user.id, provider_name, api_key, refresh=refresh)
 
 
 @router.post("", response_model=schemas.ProviderSettingSchema)
@@ -150,6 +120,8 @@ def save_setting(
 
     db.commit()
     db.refresh(setting)
+    usage_service.invalidate(current_user.id, provider_name)
+    model_catalog.invalidate(current_user.id, provider_name)
     return _public_setting(setting)
 
 
@@ -174,6 +146,30 @@ def _test_provider_key(provider_name: str, api_key: str, model: str) -> None:
         next(iter(genai.list_models()), None)
     else:
         raise ValueError(f"Provider '{provider_name}' is not currently supported.")
+
+
+@router.get("/{provider}/usage", response_model=schemas.ProviderUsageResponse)
+def get_provider_usage(
+    provider: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Limits/balance/health for the user's saved key. The key is used server-side only."""
+    provider_name = provider.lower().strip()
+    if provider_name not in DEFAULT_MODELS:
+        raise HTTPException(status_code=404, detail=f"Unknown provider '{provider_name}'.")
+
+    saved = (
+        db.query(models.ProviderSetting)
+        .filter(
+            models.ProviderSetting.user_id == current_user.id,
+            models.ProviderSetting.provider == provider_name,
+        )
+        .first()
+    )
+    api_key = (saved.api_key or "").strip() if saved else ""
+    model = (saved.model if saved and saved.model else DEFAULT_MODELS[provider_name]).strip()
+    return usage_service.check_usage(current_user.id, provider_name, api_key, model)
 
 
 @router.post("/{provider}/test", response_model=schemas.ProviderTestResponse)

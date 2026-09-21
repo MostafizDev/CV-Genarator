@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import type { ProviderSetting } from '../types';
 import { getSettings, saveSetting, testProviderConnection } from '../api/client';
+import { ModelPresets } from '../components/settings/ModelPresets';
+import { ProviderUsagePanel } from '../components/settings/ProviderUsagePanel';
 // import type { Template, TemplateKind } from '../types';
 // import { getTemplates } from '../api/client';
 // import { getDefaultTemplateId, setDefaultTemplateId } from '../utils/templatePrefs';
@@ -34,6 +36,7 @@ interface ProviderMeta {
   label: string;
   keyPlaceholder: string;
   modelPlaceholder: string;
+  // Fallback suggestions, shown until (or unless) the provider's real model list loads.
   presets: string[];
   docsUrl?: string;
   docsLabel?: string;
@@ -103,6 +106,8 @@ export const SettingsPage: React.FC = () => {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [testing, setTesting] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
+  // Bumped after a save so that provider's usage panel re-checks with the new key/model.
+  const [usageRefresh, setUsageRefresh] = useState<Record<string, number>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   /*
@@ -190,6 +195,7 @@ export const SettingsPage: React.FC = () => {
         is_default: defaultProvider === providerId,
       });
       await loadSettings();
+      setUsageRefresh((prev) => ({ ...prev, [providerId]: (prev[providerId] ?? 0) + 1 }));
       showToast(`${providerId.toUpperCase()} settings saved.`, 'success');
     } catch (err: any) {
       showToast(err.message || 'Failed to save settings', 'error');
@@ -339,7 +345,7 @@ export const SettingsPage: React.FC = () => {
                       onChange={(e) => updateForm(meta.id, 'apiKey', e.target.value)}
                       placeholder={
                         isSaved
-                          ? `${savedSetting?.api_key_hint} saved — enter a new key to replace it`
+                          ? `${savedSetting?.api_key_hint} saved · type to replace`
                           : meta.keyPlaceholder
                       }
                       autoComplete="off"
@@ -372,22 +378,16 @@ export const SettingsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                {meta.presets.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => updateForm(meta.id, 'model', p)}
-                    className={`text-[11px] px-2 py-1 rounded-md border font-mono transition ${
-                      form.model === p
-                        ? 'bg-blue-50 border-blue-300 text-blue-700 font-semibold'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
+              <ModelPresets
+                provider={meta.id}
+                enabled={isSaved}
+                refreshToken={usageRefresh[meta.id] ?? 0}
+                fallback={meta.presets}
+                value={form.model}
+                onSelect={(model) => updateForm(meta.id, 'model', model)}
+              />
+
+              <ProviderUsagePanel provider={meta.id} enabled={isSaved} refreshToken={usageRefresh[meta.id] ?? 0} />
 
               {result && (
                 <div

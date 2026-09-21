@@ -1,7 +1,9 @@
 import type {
   Profile,
+  ModelList,
   ProviderSetting,
   ProviderSettingInput,
+  ProviderUsage,
   GenerateRequest,
   GenerateResponse,
   ApplicationListItem,
@@ -190,15 +192,24 @@ export async function getSettings(): Promise<ProviderSetting[]> {
   return response.json();
 }
 
-// Lists models using the key already saved on the server. Keys are never put in a URL.
-export async function getAvailableModels(provider: string): Promise<string[]> {
+// Limits, balance and health for the key saved on the server (the key itself never leaves it).
+export async function getProviderUsage(provider: string): Promise<ProviderUsage> {
+  const response = await apiFetch(`/settings/${provider}/usage`);
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to check usage'));
+  }
+  return response.json();
+}
+
+// The models the provider offers the key saved on the server. Keys are never put in a URL.
+export async function getAvailableModels(provider: string, refresh = false): Promise<ModelList> {
   const params = new URLSearchParams({ provider });
+  if (refresh) params.set('refresh', 'true');
   const response = await apiFetch(`/settings/models?${params.toString()}`);
   if (!response.ok) {
-    return [];
+    throw new Error(await parseErrorDetail(response, 'Failed to load models'));
   }
-  const data = await response.json();
-  return data.models || [];
+  return response.json();
 }
 
 export async function saveSetting(setting: ProviderSettingInput): Promise<ProviderSetting> {

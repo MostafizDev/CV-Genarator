@@ -184,6 +184,44 @@ class ProviderTestRequest(BaseModel):
     model: Optional[str] = None
 
 
+class UsageMeter(BaseModel):
+    """One limit a provider reports, e.g. requests per day or tokens per minute."""
+
+    id: str
+    label: str
+    limit: int
+    remaining: int
+    resets_in_seconds: Optional[float] = None
+
+
+class UsageBalance(BaseModel):
+    currency: str
+    total: str
+    granted: str = "0"
+    topped_up: str = "0"
+
+
+class ProviderUsageResponse(BaseModel):
+    provider: str
+    status: Literal["healthy", "low", "limited", "invalid_key", "error", "no_key"]
+    message: str
+    checked_at: datetime
+    meters: List[UsageMeter] = []
+    balance: Optional[UsageBalance] = None
+    # Explains what this provider can NOT tell us (e.g. Gemini exposes no quota API).
+    note: Optional[str] = None
+
+
+class ModelListResponse(BaseModel):
+    """Models the provider says this key can use. `ok` with an empty list is possible;
+    anything else means the caller should fall back to its built-in suggestions."""
+
+    provider: str
+    status: Literal["ok", "no_key", "invalid_key", "error"]
+    models: List[str] = []
+    message: str = ""
+
+
 class ProviderTestResponse(BaseModel):
     success: bool
     message: str

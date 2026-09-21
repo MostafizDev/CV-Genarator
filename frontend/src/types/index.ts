@@ -57,6 +57,43 @@ export interface ProviderSetting {
   is_default: boolean;
 }
 
+/** Models a provider offers the saved key. Anything but 'ok' means "use the built-in suggestions". */
+export interface ModelList {
+  provider: string;
+  status: 'ok' | 'no_key' | 'invalid_key' | 'error';
+  models: string[];
+  message: string;
+}
+
+export type UsageStatus = 'healthy' | 'low' | 'limited' | 'invalid_key' | 'error' | 'no_key';
+
+/** One limit a provider reports, e.g. requests per day or tokens per minute. */
+export interface UsageMeter {
+  id: string;
+  label: string;
+  limit: number;
+  remaining: number;
+  resets_in_seconds: number | null;
+}
+
+export interface UsageBalance {
+  currency: string;
+  total: string;
+  granted: string;
+  topped_up: string;
+}
+
+export interface ProviderUsage {
+  provider: string;
+  status: UsageStatus;
+  message: string;
+  checked_at: string;
+  meters: UsageMeter[];
+  balance: UsageBalance | null;
+  /** What this provider can't report (e.g. Gemini has no quota API). */
+  note: string | null;
+}
+
 /** What the browser sends when saving. A blank api_key keeps the key already saved. */
 export interface ProviderSettingInput {
   provider: string;
