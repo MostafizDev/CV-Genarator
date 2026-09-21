@@ -2,6 +2,8 @@
 
 A full-stack, multi-user application that manages a candidate's master profile and uses AI to generate tailored, ATS-optimized CVs and cover letters for specific job descriptions — with a built-in application tracker, custom PDF templates, and self-serve Google sign-in.
 
+> **Current feature reference:** see [docs/FEATURES.md](docs/FEATURES.md) for the up-to-date feature list, security model and configuration. Parts of this README (sign-in methods, custom templates) predate recent changes.
+
 ---
 
 ## Features
