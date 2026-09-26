@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 // import { Link } from 'react-router-dom';
 import {
   Key,
@@ -14,12 +14,15 @@ import {
   RefreshCw,
   Star,
   PlugZap,
+  SlidersHorizontal,
+  Target,
   // LayoutTemplate,
 } from 'lucide-react';
-import type { ProviderSetting } from '../types';
-import { getSettings, saveSetting, testProviderConnection } from '../api/client';
+import type { ProviderSetting, UserPreferences } from '../types';
+import { getPreferences, getSettings, saveSetting, testProviderConnection, updatePreferences } from '../api/client';
 import { ModelPresets } from '../components/settings/ModelPresets';
 import { ProviderUsagePanel } from '../components/settings/ProviderUsagePanel';
+import { Toggle } from '../components/settings/Toggle';
 // import type { Template, TemplateKind } from '../types';
 // import { getTemplates } from '../api/client';
 // import { getDefaultTemplateId, setDefaultTemplateId } from '../utils/templatePrefs';
@@ -96,8 +99,10 @@ interface CardFormState {
 }
 
 type TestResult = { success: boolean; message: string } | null;
+type SettingsTab = 'providers' | 'preferences';
 
 export const SettingsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('providers');
   const [loading, setLoading] = useState(true);
   const [savedSettings, setSavedSettings] = useState<ProviderSetting[]>([]);
   const [formState, setFormState] = useState<Record<string, CardFormState>>({});
@@ -109,6 +114,10 @@ export const SettingsPage: React.FC = () => {
   // Bumped after a save so that provider's usage panel re-checks with the new key/model.
   const [usageRefresh, setUsageRefresh] = useState<Record<string, number>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const [preferences, setPreferences] = useState<UserPreferences>({ gap_analysis_enabled: true });
+  const [preferencesLoading, setPreferencesLoading] = useState(true);
+  const [savingPreference, setSavingPreference] = useState(false);
 
   /*
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -168,6 +177,33 @@ export const SettingsPage: React.FC = () => {
     loadSettings();
   }, [loadSettings]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        setPreferences(await getPreferences());
+      } catch {
+        // Non-fatal: the toggle just falls back to its default (enabled) and can still be saved.
+      } finally {
+        setPreferencesLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleToggleGapAnalysis = async (next: boolean) => {
+    const previous = preferences;
+    setPreferences((prev) => ({ ...prev, gap_analysis_enabled: next })); // optimistic
+    setSavingPreference(true);
+    try {
+      setPreferences(await updatePreferences({ gap_analysis_enabled: next }));
+      showToast(next ? 'Gap Analysis enabled.' : 'Gap Analysis disabled.', 'success');
+    } catch (err: any) {
+      setPreferences(previous);
+      showToast(err.message || 'Failed to update preference', 'error');
+    } finally {
+      setSavingPreference(false);
+    }
+  };
+
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -221,6 +257,16 @@ export const SettingsPage: React.FC = () => {
   const activeProviderSetting = savedSettings.find((s) => s.is_default) || savedSettings[0];
   const hasConfiguredKey = Boolean(activeProviderSetting?.has_api_key);
 
+  // The default provider's card always sits at the top of the list.
+  const sortedProviders = useMemo(() => {
+    const defaultIndex = PROVIDER_META.findIndex((meta) => meta.id === defaultProvider);
+    if (defaultIndex <= 0) return PROVIDER_META;
+    const reordered = [...PROVIDER_META];
+    const [defaultMeta] = reordered.splice(defaultIndex, 1);
+    reordered.unshift(defaultMeta);
+    return reordered;
+  }, [defaultProvider]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -252,40 +298,68 @@ export const SettingsPage: React.FC = () => {
 
       {/* Header */}
       <div className="pb-6 border-b border-slate-200">
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">AI Provider Settings</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Configure credentials for any of five providers. Mark one as default, or override it per-generation.
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Settings</h1>
+        <p className="text-slate-500 text-sm mt-1">Configure AI providers and app preferences.</p>
       </div>
 
-      {/* Status banner */}
-      <div
-        className={`mt-6 p-4 rounded-xl border flex items-start space-x-3 ${
-          hasConfiguredKey
-            ? 'bg-green-100/70 border-green-200 text-green-900'
-            : 'bg-amber-50/70 border-amber-200 text-amber-900'
-        }`}
-      >
-        {hasConfiguredKey ? (
-          <ShieldCheck className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-        ) : (
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        )}
-        <div className="text-xs sm:text-sm">
-          <div className="font-semibold">
-            {hasConfiguredKey ? 'AI Provider Active & Ready' : 'API Key Required'}
-          </div>
-          <div className="text-xs mt-0.5 opacity-90">
-            {hasConfiguredKey
-              ? `Default provider: ${activeProviderSetting.provider.toUpperCase()} (${activeProviderSetting.model})`
-              : 'Configure at least one provider below to unlock tailored CV generation.'}
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="mt-6 flex items-center gap-1 border-b border-slate-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab('providers')}
+          className={`flex items-center space-x-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition ${
+            activeTab === 'providers'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Cpu className="w-4 h-4" />
+          <span>AI Providers</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('preferences')}
+          className={`flex items-center space-x-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition ${
+            activeTab === 'preferences'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          <span>Preferences</span>
+        </button>
       </div>
 
-      {/* Provider Cards */}
-      <div className="mt-6 space-y-5">
-        {PROVIDER_META.map((meta) => {
+      {activeTab === 'providers' && (
+        <>
+          {/* Status banner */}
+          <div
+            className={`mt-6 p-4 rounded-xl border flex items-start space-x-3 ${
+              hasConfiguredKey
+                ? 'bg-green-100/70 border-green-200 text-green-900'
+                : 'bg-amber-50/70 border-amber-200 text-amber-900'
+            }`}
+          >
+            {hasConfiguredKey ? (
+              <ShieldCheck className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            )}
+            <div className="text-xs sm:text-sm">
+              <div className="font-semibold">
+                {hasConfiguredKey ? 'AI Provider Active & Ready' : 'API Key Required'}
+              </div>
+              <div className="text-xs mt-0.5 opacity-90">
+                {hasConfiguredKey
+                  ? `Default provider: ${activeProviderSetting.provider.toUpperCase()} (${activeProviderSetting.model})`
+                  : 'Configure at least one provider below to unlock tailored CV generation.'}
+              </div>
+            </div>
+          </div>
+
+          {/* Provider Cards -- the default provider's card is always sorted to the top */}
+          <div className="mt-6 space-y-5">
+        {sortedProviders.map((meta) => {
           const form = formState[meta.id] || { apiKey: '', model: meta.modelPlaceholder };
           const savedSetting = savedSettings.find((s) => s.provider === meta.id);
           const isSaved = Boolean(savedSetting?.has_api_key);
@@ -433,7 +507,42 @@ export const SettingsPage: React.FC = () => {
             </div>
           );
         })}
-      </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'preferences' && (
+        <div className="mt-6 space-y-5">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center space-x-2">
+                  <Target className="w-4 h-4 text-blue-600" />
+                  <span>Gap Analysis (ATS Match Score)</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-1.5 max-w-md leading-relaxed">
+                  After each generation, compare the job&apos;s requirements against your profile
+                  and show an ATS match score with concrete gaps. Turn this off to skip it
+                  entirely -- no extra AI calls are made, and it won&apos;t appear on the
+                  application page.
+                </p>
+              </div>
+              {preferencesLoading ? (
+                <Loader2 className="w-4 h-4 text-slate-400 animate-spin shrink-0 mt-1" />
+              ) : (
+                <Toggle
+                  checked={preferences.gap_analysis_enabled}
+                  onChange={handleToggleGapAnalysis}
+                  disabled={savingPreference}
+                  label="Enable Gap Analysis"
+                />
+              )}
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-400 text-center">More preferences (like notifications) will appear here as they ship.</p>
+        </div>
+      )}
 
       {/*
       Default Template Picker

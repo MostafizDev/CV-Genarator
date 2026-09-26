@@ -8,7 +8,7 @@ import models
 import database
 import migrations
 from core import crypto
-from routers import profile, settings, generate, export, applications, auth
+from routers import profile, settings, generate, export, applications, auth, preferences
 # from routers import templates
 
 # Refuse to start without an encryption key rather than failing on a user's first request.
@@ -79,6 +79,7 @@ app.include_router(settings.router)
 app.include_router(generate.router)
 app.include_router(export.router)
 app.include_router(applications.router)
+app.include_router(preferences.router)
 # app.include_router(templates.router)
 
 
@@ -122,6 +123,7 @@ else:
                 "/api/generate",
                 "/api/export-pdf",
                 "/api/applications",
+                "/api/preferences",
                 # "/api/templates",
                 "/docs",
             ],

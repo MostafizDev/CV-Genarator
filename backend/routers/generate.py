@@ -9,6 +9,7 @@ import schemas
 from routers.profile import _serialize_profile
 import services.ai.router as ai_router
 from services.gap_analysis import run_gap_analysis, serialize as serialize_gap_analysis
+from services.preferences import parse_preferences
 from services.prompts.cv import build_cv_prompt
 from services.prompts.cover_letter import build_cover_letter_prompt
 from services.project_matching import rank_and_highlight_projects
@@ -130,12 +131,16 @@ def generate_cv_and_cover_letter(
     cover_letter_text = raw_cl_response.strip()
 
     # 5. Gap analysis: how this profile stacks up against the job's stated requirements.
-    # Never allowed to fail the generation itself -- a bad/slow provider response here just
-    # means no gap analysis for this application, not a lost CV and cover letter.
-    try:
-        gap_analysis = run_gap_analysis(ai_provider, request.job_description, profile_data)
-    except Exception:
-        gap_analysis = schemas.GapAnalysis(note="Gap analysis is unavailable right now.")
+    # Skipped entirely (no AI calls spent on it) when the user has turned it off in
+    # Settings -> Preferences. Otherwise, never allowed to fail the generation itself -- a
+    # bad/slow provider response here just means no gap analysis for this application, not
+    # a lost CV and cover letter.
+    gap_analysis = None
+    if parse_preferences(current_user.preferences).gap_analysis_enabled:
+        try:
+            gap_analysis = run_gap_analysis(ai_provider, request.job_description, profile_data)
+        except Exception:
+            gap_analysis = schemas.GapAnalysis(note="Gap analysis is unavailable right now.")
 
     # 6. Record this generation in the application tracker
     application = models.Application(
@@ -147,7 +152,7 @@ def generate_cv_and_cover_letter(
         model_used=resolved.model,
         generated_cv=json.dumps(cv_json),
         generated_cover_letter=cover_letter_text,
-        gap_analysis=serialize_gap_analysis(gap_analysis),
+        gap_analysis=serialize_gap_analysis(gap_analysis) if gap_analysis is not None else None,
         status="Generated",
     )
     db.add(application)

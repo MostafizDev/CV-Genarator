@@ -102,6 +102,21 @@ class ProviderSettingCreate(BaseModel):
     is_default: bool = False
 
 
+class UserPreferences(BaseModel):
+    """Feature toggles the user controls from Settings -> Preferences. New settings (e.g. a
+    future notifications toggle) are added here as another field with its own default --
+    existing stored preferences JSON without that key just falls back to the default."""
+
+    gap_analysis_enabled: bool = True
+
+
+class UserPreferencesUpdate(BaseModel):
+    """Partial update: only the fields actually sent are changed (see routers/preferences.py),
+    so setting one preference never resets the others to their defaults."""
+
+    gap_analysis_enabled: Optional[bool] = None
+
+
 class UploadCvResponse(BaseModel):
     text: str
 

@@ -102,6 +102,11 @@ export interface ProviderSettingInput {
   is_default: boolean;
 }
 
+/** Feature toggles from Settings -> Preferences. New settings are added here as they ship. */
+export interface UserPreferences {
+  gap_analysis_enabled: boolean;
+}
+
 export const AI_PROVIDERS = ['groq', 'openai', 'anthropic', 'gemini', 'deepseek'] as const;
 export type AiProviderName = (typeof AI_PROVIDERS)[number];
 

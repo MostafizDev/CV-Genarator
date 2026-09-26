@@ -52,6 +52,7 @@ _COLUMNS_ADDED_LATER = {
         "last_name": "VARCHAR DEFAULT ''",
         "password_hash": "VARCHAR",
         "firebase_uid": "VARCHAR",
+        "preferences": "TEXT DEFAULT '{}'",  # JSON string; see schemas.UserPreferences.
     },
     "applications": {
         "gap_analysis": "TEXT",  # JSON string; see schemas.GapAnalysis. NULL on rows generated before this existed.

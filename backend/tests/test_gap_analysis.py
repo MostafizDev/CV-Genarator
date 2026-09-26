@@ -475,3 +475,54 @@ def test_applications_list_endpoint_does_not_include_gap_analysis(client, monkey
 
     listed = client.get("/api/applications").json()
     assert listed and "gap_analysis" not in listed[0] and "generated_cv" not in listed[0]
+
+
+# --- disabling Gap Analysis in Preferences must spend zero extra AI calls -----------------
+
+def test_disabling_gap_analysis_makes_no_gap_analysis_ai_calls(client, monkeypatch):
+    """Empirical proof, not just code review: records every system_prompt sent to the AI
+    provider during a full /api/generate call with the preference off, and asserts neither
+    the requirements-extraction prompt nor the related-skills prompt was ever sent -- only
+    the CV and cover-letter prompts. Compares against the same call with it left on, which
+    must trigger the requirements-extraction prompt."""
+    calls = []
+
+    class RecordingProvider(MockAiProvider):
+        def generate(self, prompt, system_prompt=""):
+            calls.append(system_prompt)
+            return super().generate(prompt, system_prompt)
+
+    def mock_get_provider(db, user_id=None, provider_override=None):
+        return ai_router.ResolvedProvider(
+            provider=RecordingProvider(), provider_name="groq", model="llama-3.3-70b-versatile"
+        )
+
+    client.post("/api/profile", json=PROFILE_PAYLOAD)
+    client.post(
+        "/api/settings",
+        json={"provider": "groq", "api_key": "gsk_test_key", "model": "llama-3.3-70b-versatile", "is_default": True},
+    )
+    monkeypatch.setattr(ai_router, "get_provider", mock_get_provider)
+    payload = {"company": "A", "position": "B", "job_description": "Needs 5+ years, Python and Go."}
+
+    # -- OFF: turn the preference off, then generate. --
+    put_res = client.put("/api/preferences", json={"gap_analysis_enabled": False})
+    assert put_res.json() == {"gap_analysis_enabled": False}
+
+    off_res = client.post("/api/generate", json=payload)
+    assert off_res.status_code == 200
+    off_body = off_res.json()
+    assert off_body["gap_analysis"] is None  # nothing returned to the frontend either
+    assert len(calls) == 2  # exactly: CV generation + cover letter -- nothing else
+    assert not any("REQUIREMENTS EXTRACTION" in p for p in calls)
+    assert not any("SKILL RELATEDNESS" in p for p in calls)
+
+    fetched = client.get(f"/api/applications/{off_body['application_id']}").json()
+    assert fetched["gap_analysis"] is None  # nothing persisted for this application either
+
+    # -- Sanity check the test's own instrumentation: ON must add the extraction call. --
+    calls.clear()
+    client.put("/api/preferences", json={"gap_analysis_enabled": True})
+    on_res = client.post("/api/generate", json=payload)
+    assert on_res.json()["gap_analysis"] is not None
+    assert any("REQUIREMENTS EXTRACTION" in p for p in calls)

@@ -41,6 +41,9 @@ class User(Base):
     # No admin-only features currently route through this -- kept dormant in case
     # an admin-facing feature is reintroduced later.
     is_admin = Column(Boolean, default=False)
+    # JSON string; see schemas.UserPreferences / services/preferences.py. Not sensitive
+    # (feature toggles, not personal data), so plain text rather than EncryptedText.
+    preferences = Column(Text, default="{}")
     created_at = Column(DateTime, default=_utcnow)
 
 

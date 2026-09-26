@@ -13,6 +13,7 @@ import type {
   CurrentUser,
   Template,
   TemplateKind,
+  UserPreferences,
 } from '../types';
 import { auth } from '../firebase';
 
@@ -220,6 +221,28 @@ export async function saveSetting(setting: ProviderSettingInput): Promise<Provid
   });
   if (!response.ok) {
     throw new Error(await parseErrorDetail(response, 'Failed to save setting'));
+  }
+  return response.json();
+}
+
+export async function getPreferences(): Promise<UserPreferences> {
+  const response = await apiFetch('/preferences');
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to load preferences'));
+  }
+  return response.json();
+}
+
+// Partial update: only the fields included in `changes` are sent, so other preferences the
+// caller doesn't know about are never reset.
+export async function updatePreferences(changes: Partial<UserPreferences>): Promise<UserPreferences> {
+  const response = await apiFetch('/preferences', {
+    method: 'PUT',
+    headers: jsonHeaders(),
+    body: JSON.stringify(changes),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorDetail(response, 'Failed to update preferences'));
   }
   return response.json();
 }

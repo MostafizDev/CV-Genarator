@@ -29,7 +29,8 @@ def _serialize_application(app: models.Application) -> Dict[str, Any]:
         "model_used": app.model_used or "",
         "generated_cv": generated_cv,
         "generated_cover_letter": app.generated_cover_letter or "",
-        # None for applications generated before Gap Analysis existed, or if it failed.
+        # None for applications generated before Gap Analysis existed, generated while the
+        # user had it turned off in Preferences, or where it failed.
         "gap_analysis": deserialize_gap_analysis(app.gap_analysis),
         "status": app.status or "Generated",
         "created_at": app.created_at,
