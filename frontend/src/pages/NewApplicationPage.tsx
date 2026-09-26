@@ -15,6 +15,7 @@ import { downloadBlob, sanitizeForFilename } from '../utils/pdfExport';
 // import { getDefaultTemplateId } from '../utils/templatePrefs';
 import { CvPreviewPanel } from '../components/CvPreviewPanel';
 import { CoverLetterPreviewPanel } from '../components/CoverLetterPreviewPanel';
+import { GapAnalysisPanel } from '../components/GapAnalysisPanel';
 
 export const NewApplicationPage: React.FC = () => {
   const [company, setCompany] = useState('');
@@ -287,6 +288,7 @@ export const NewApplicationPage: React.FC = () => {
 
           {result && editedCv && (
             <div className="space-y-6 animate-in fade-in duration-300">
+              <GapAnalysisPanel gapAnalysis={result.gap_analysis} />
               <CvPreviewPanel cv={editedCv} onChange={updateEditedCv} onExport={handleExportCv} exporting={exportingCv} />
               <CoverLetterPreviewPanel
                 value={editedCoverLetter}

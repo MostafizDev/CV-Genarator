@@ -18,6 +18,7 @@ import { downloadBlob, sanitizeForFilename } from '../utils/pdfExport';
 // import { getDefaultTemplateId } from '../utils/templatePrefs';
 import { CvPreviewPanel } from '../components/CvPreviewPanel';
 import { CoverLetterPreviewPanel } from '../components/CoverLetterPreviewPanel';
+import { GapAnalysisPanel } from '../components/GapAnalysisPanel';
 
 const STATUS_STYLES: Record<string, string> = {
   Generated: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -227,6 +228,7 @@ export const ApplicationDetailPage: React.FC = () => {
       )}
 
       <div className="mt-6 space-y-6">
+        <GapAnalysisPanel gapAnalysis={application.gap_analysis} />
         {editedCv && (
           <CvPreviewPanel cv={editedCv} onChange={updateEditedCv} onExport={handleExportCv} exporting={exportingCv} />
         )}

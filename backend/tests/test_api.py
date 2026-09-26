@@ -312,7 +312,26 @@ def _mock_get_provider(db, user_id=None, provider_override=None):
 
 class MockAiProvider(AiProvider):
     def generate(self, prompt: str, system_prompt: str = "") -> str:
-        if "HR data parsing assistant" in system_prompt:
+        if "REQUIREMENTS EXTRACTION" in system_prompt:
+            # Deliberately: min_years_experience the mock profile's Jan-2021-to-Present role
+            # doesn't reach, one matched skill (Python), one missing required skill (Go),
+            # and one missing preferred certification, so gap-analysis tests have something
+            # concrete (and not-all-passing) to assert on.
+            return json.dumps({
+                "min_years_experience": 5,
+                "required_skills": [
+                    {"name": "Python", "importance": "required"},
+                    {"name": "Go", "importance": "required"},
+                ],
+                "required_certifications": [
+                    {"name": "AWS Certified Solutions Architect", "importance": "preferred"},
+                ],
+            })
+        elif "SKILL RELATEDNESS" in system_prompt:
+            # "Go" genuinely isn't related to any of the mock profile's skills (Python, FastAPI,
+            # React), so this reports no matches -- Go stays a real, blocking gap in tests.
+            return json.dumps({"matches": []})
+        elif "HR data parsing assistant" in system_prompt:
             return json.dumps({
                 "full_name": "Jordan Smith",
                 "email": "jordan.smith@example.com",

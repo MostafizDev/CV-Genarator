@@ -8,6 +8,7 @@ import models
 import schemas
 from routers.profile import _serialize_profile
 import services.ai.router as ai_router
+from services.gap_analysis import run_gap_analysis, serialize as serialize_gap_analysis
 from services.prompts.cv import build_cv_prompt
 from services.prompts.cover_letter import build_cover_letter_prompt
 from services.project_matching import rank_and_highlight_projects
@@ -128,7 +129,15 @@ def generate_cv_and_cover_letter(
 
     cover_letter_text = raw_cl_response.strip()
 
-    # 5. Record this generation in the application tracker
+    # 5. Gap analysis: how this profile stacks up against the job's stated requirements.
+    # Never allowed to fail the generation itself -- a bad/slow provider response here just
+    # means no gap analysis for this application, not a lost CV and cover letter.
+    try:
+        gap_analysis = run_gap_analysis(ai_provider, request.job_description, profile_data)
+    except Exception:
+        gap_analysis = schemas.GapAnalysis(note="Gap analysis is unavailable right now.")
+
+    # 6. Record this generation in the application tracker
     application = models.Application(
         user_id=current_user.id,
         company=request.company,
@@ -138,6 +147,7 @@ def generate_cv_and_cover_letter(
         model_used=resolved.model,
         generated_cv=json.dumps(cv_json),
         generated_cover_letter=cover_letter_text,
+        gap_analysis=serialize_gap_analysis(gap_analysis),
         status="Generated",
     )
     db.add(application)
@@ -148,4 +158,5 @@ def generate_cv_and_cover_letter(
         cv=cv_json,
         cover_letter=cover_letter_text,
         application_id=application.id,
+        gap_analysis=gap_analysis,
     )

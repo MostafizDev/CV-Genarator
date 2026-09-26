@@ -147,6 +147,7 @@ class Application(Base):
     model_used = Column(String, default="")
     generated_cv = Column(EncryptedText, default="{}")  # JSON string of the generated CV
     generated_cover_letter = Column(EncryptedText, default="")
+    gap_analysis = Column(EncryptedText, nullable=True)  # JSON string; see schemas.GapAnalysis
     status = Column(String, default="Generated")
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)

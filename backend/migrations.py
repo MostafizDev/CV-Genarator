@@ -43,25 +43,32 @@ def seed_builtin_templates(engine: Engine) -> None:
         db.close()
 
 
-# Columns added to "users" after the table first shipped. create_all() skips tables that
-# already exist, so an existing app.db needs them added in place (SQLite supports
-# ADD COLUMN for nullable / defaulted columns).
-_USER_COLUMNS_ADDED_LATER = {
-    "first_name": "VARCHAR DEFAULT ''",
-    "last_name": "VARCHAR DEFAULT ''",
-    "password_hash": "VARCHAR",
-    "firebase_uid": "VARCHAR",
+# Columns added to existing tables after they first shipped. create_all() skips tables that
+# already exist, so an existing database needs them added in place (both SQLite and Postgres
+# support ADD COLUMN for nullable / defaulted columns).
+_COLUMNS_ADDED_LATER = {
+    "users": {
+        "first_name": "VARCHAR DEFAULT ''",
+        "last_name": "VARCHAR DEFAULT ''",
+        "password_hash": "VARCHAR",
+        "firebase_uid": "VARCHAR",
+    },
+    "applications": {
+        "gap_analysis": "TEXT",  # JSON string; see schemas.GapAnalysis. NULL on rows generated before this existed.
+    },
 }
 
 logger = logging.getLogger(__name__)
 
 
-def add_missing_user_columns(engine: Engine) -> None:
-    existing = {col["name"] for col in inspect(engine).get_columns("users")}
+def add_missing_columns(engine: Engine) -> None:
+    inspector = inspect(engine)
     with engine.begin() as conn:
-        for name, ddl in _USER_COLUMNS_ADDED_LATER.items():
-            if name not in existing:
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {name} {ddl}"))
+        for table, columns in _COLUMNS_ADDED_LATER.items():
+            existing = {col["name"] for col in inspector.get_columns(table)}
+            for name, ddl in columns.items():
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
 
 
 def enforce_one_account_per_email(engine: Engine) -> None:
@@ -193,7 +200,7 @@ def run_migrations(engine: Engine, app_engine: Engine = None) -> None:
     can't ALTER a column's type), so a breaking change means deleting app.db and
     letting Base.metadata.create_all() rebuild it from scratch.
     """
-    add_missing_user_columns(engine)
+    add_missing_columns(engine)
     enforce_one_account_per_email(engine)
     seed_builtin_templates(engine)
     apply_row_level_security(engine, app_engine or engine)

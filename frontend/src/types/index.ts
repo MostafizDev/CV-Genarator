@@ -151,10 +151,34 @@ export interface GeneratedCV {
   [key: string]: any;
 }
 
+export type GapCategory = 'experience' | 'skill' | 'certification';
+export type GapSeverity = 'blocking' | 'minor';
+
+/** One concrete gap between the job's stated requirements and the candidate's profile. */
+export interface Gap {
+  category: GapCategory;
+  severity: GapSeverity;
+  requirement: string;
+  candidate_has: string;
+  recommendation: string;
+}
+
+/** Result of comparing the job's explicit requirements against the candidate's profile.
+ * `score`/`gaps` are empty and `note` explains why when the job description didn't state
+ * anything concrete enough to check (no fabricated score). */
+export interface GapAnalysis {
+  score: number | null;
+  gaps: Gap[];
+  matched_count: number;
+  total_count: number;
+  note: string | null;
+}
+
 export interface GenerateResponse {
   cv: GeneratedCV;
   cover_letter: string;
   application_id?: number | null;
+  gap_analysis?: GapAnalysis | null;
 }
 
 export interface ApplicationListItem {
@@ -172,6 +196,7 @@ export interface Application extends ApplicationListItem {
   job_description: string;
   generated_cv: GeneratedCV;
   generated_cover_letter: string;
+  gap_analysis?: GapAnalysis | null;
 }
 
 export interface ApplicationUpdate {

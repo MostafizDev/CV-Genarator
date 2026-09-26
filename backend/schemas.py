@@ -118,10 +118,36 @@ class GenerateRequest(BaseModel):
     provider: Optional[str] = None
 
 
+class Gap(BaseModel):
+    """One concrete gap between the job's requirements and the candidate's profile.
+    Every gap must trace back to something the job description explicitly asks for and
+    something the profile explicitly does (or does not) show -- see services/gap_analysis.py.
+    """
+
+    category: Literal["experience", "skill", "certification"]
+    severity: Literal["blocking", "minor"]
+    requirement: str
+    candidate_has: str
+    recommendation: str
+
+
+class GapAnalysis(BaseModel):
+    """Result of comparing the job's explicit requirements against the candidate's profile.
+    `score` and the gap list are both None/empty when the job description didn't state any
+    requirement concrete enough to check -- see `note` in that case, never a guess."""
+
+    score: Optional[int] = None
+    gaps: List[Gap] = []
+    matched_count: int = 0
+    total_count: int = 0
+    note: Optional[str] = None
+
+
 class GenerateResponse(BaseModel):
     cv: Dict[str, Any]
     cover_letter: str
     application_id: Optional[int] = None
+    gap_analysis: Optional[GapAnalysis] = None
 
 
 class ExportPdfRequest(BaseModel):
@@ -139,6 +165,7 @@ class ApplicationSchema(BaseModel):
     model_used: str = ""
     generated_cv: Dict[str, Any] = {}
     generated_cover_letter: str = ""
+    gap_analysis: Optional[GapAnalysis] = None
     status: str = "Generated"
     created_at: datetime
     updated_at: datetime

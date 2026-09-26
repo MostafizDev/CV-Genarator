@@ -7,6 +7,7 @@ from database import get_db
 import models
 import schemas
 from core.firebase_auth import get_current_user
+from services.gap_analysis import deserialize as deserialize_gap_analysis
 
 router = APIRouter(prefix="/api/applications", tags=["Applications"])
 
@@ -28,6 +29,8 @@ def _serialize_application(app: models.Application) -> Dict[str, Any]:
         "model_used": app.model_used or "",
         "generated_cv": generated_cv,
         "generated_cover_letter": app.generated_cover_letter or "",
+        # None for applications generated before Gap Analysis existed, or if it failed.
+        "gap_analysis": deserialize_gap_analysis(app.gap_analysis),
         "status": app.status or "Generated",
         "created_at": app.created_at,
         "updated_at": app.updated_at,
