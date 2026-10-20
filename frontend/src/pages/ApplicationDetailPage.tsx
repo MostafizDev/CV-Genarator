@@ -11,10 +11,11 @@ import {
   ChevronUp,
   FileText,
 } from 'lucide-react';
-import type { Application, ApplicationStatus, GeneratedCV } from '../types';
+import type { Application, ApplicationStatus, FilenameField, GeneratedCV } from '../types';
 import { APPLICATION_STATUSES } from '../types';
-import { getApplication, updateApplication, exportPdf } from '../api/client';
-import { downloadBlob, sanitizeForFilename } from '../utils/pdfExport';
+import { getApplication, getPreferences, updateApplication, exportPdf } from '../api/client';
+import { downloadBlob } from '../utils/pdfExport';
+import { buildPdfFilename } from '../utils/pdfFilename';
 // import { getDefaultTemplateId } from '../utils/templatePrefs';
 import { CvPreviewPanel } from '../components/CvPreviewPanel';
 import { CoverLetterPreviewPanel } from '../components/CoverLetterPreviewPanel';
@@ -42,6 +43,7 @@ export const ApplicationDetailPage: React.FC = () => {
   const [exportingCv, setExportingCv] = useState(false);
   const [exportingCoverLetter, setExportingCoverLetter] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [filenameFields, setFilenameFields] = useState<FilenameField[]>(['company']);
 
   useEffect(() => {
     if (!id) return;
@@ -59,6 +61,9 @@ export const ApplicationDetailPage: React.FC = () => {
         setLoading(false);
       }
     })();
+    getPreferences()
+      .then((preferences) => setFilenameFields(preferences.pdf_filename_fields))
+      .catch(() => {}); // non-fatal: falls back to naming by company
   }, [id]);
 
   const handleStatusChange = async (newStatus: ApplicationStatus) => {
@@ -87,7 +92,15 @@ export const ApplicationDetailPage: React.FC = () => {
       setExportError(null);
       // const blob = await exportPdf('cv', editedCv, getDefaultTemplateId('cv'));
       const blob = await exportPdf('cv', editedCv);
-      downloadBlob(blob, `CV_${sanitizeForFilename(application.company)}.pdf`);
+      downloadBlob(
+        blob,
+        buildPdfFilename('CV', filenameFields, {
+          fullName: editedCv.full_name,
+          company: application.company,
+          designation: application.position,
+          experiences: editedCv.experience,
+        }),
+      );
     } catch (err: any) {
       setExportError(err.message || 'Failed to export CV as PDF.');
     } finally {
@@ -102,7 +115,15 @@ export const ApplicationDetailPage: React.FC = () => {
       setExportError(null);
       // const blob = await exportPdf('cover_letter', editedCoverLetter, getDefaultTemplateId('cover_letter'));
       const blob = await exportPdf('cover_letter', editedCoverLetter);
-      downloadBlob(blob, `CoverLetter_${sanitizeForFilename(application.company)}.pdf`);
+      downloadBlob(
+        blob,
+        buildPdfFilename('CoverLetter', filenameFields, {
+          fullName: editedCv?.full_name,
+          company: application.company,
+          designation: application.position,
+          experiences: editedCv?.experience,
+        }),
+      );
     } catch (err: any) {
       setExportError(err.message || 'Failed to export cover letter as PDF.');
     } finally {

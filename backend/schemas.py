@@ -102,12 +102,29 @@ class ProviderSettingCreate(BaseModel):
     is_default: bool = False
 
 
+FilenameField = Literal["first_name", "last_name", "year_of_experience", "company", "designation"]
+
+
 class UserPreferences(BaseModel):
     """Feature toggles the user controls from Settings -> Preferences. New settings (e.g. a
     future notifications toggle) are added here as another field with its own default --
     existing stored preferences JSON without that key just falls back to the default."""
 
     gap_analysis_enabled: bool = True
+    # Which pieces go into an exported CV/cover-letter PDF's filename, and in what order.
+    # Default matches the filename used before this preference existed ("CV_<company>.pdf").
+    pdf_filename_fields: List[FilenameField] = ["company"]
+
+    @field_validator("pdf_filename_fields")
+    @classmethod
+    def _dedupe_filename_fields(cls, value: List[FilenameField]) -> List[FilenameField]:
+        seen = set()
+        deduped = []
+        for field in value:
+            if field not in seen:
+                seen.add(field)
+                deduped.append(field)
+        return deduped
 
 
 class UserPreferencesUpdate(BaseModel):
@@ -115,6 +132,20 @@ class UserPreferencesUpdate(BaseModel):
     so setting one preference never resets the others to their defaults."""
 
     gap_analysis_enabled: Optional[bool] = None
+    pdf_filename_fields: Optional[List[FilenameField]] = None
+
+    @field_validator("pdf_filename_fields")
+    @classmethod
+    def _dedupe_filename_fields(cls, value: Optional[List[FilenameField]]) -> Optional[List[FilenameField]]:
+        if value is None:
+            return None
+        seen = set()
+        deduped = []
+        for field in value:
+            if field not in seen:
+                seen.add(field)
+                deduped.append(field)
+        return deduped
 
 
 class UploadCvResponse(BaseModel):

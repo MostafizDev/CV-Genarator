@@ -507,7 +507,7 @@ def test_disabling_gap_analysis_makes_no_gap_analysis_ai_calls(client, monkeypat
 
     # -- OFF: turn the preference off, then generate. --
     put_res = client.put("/api/preferences", json={"gap_analysis_enabled": False})
-    assert put_res.json() == {"gap_analysis_enabled": False}
+    assert put_res.json()["gap_analysis_enabled"] is False
 
     off_res = client.post("/api/generate", json=payload)
     assert off_res.status_code == 200

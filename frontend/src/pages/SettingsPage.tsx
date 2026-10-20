@@ -16,10 +16,12 @@ import {
   PlugZap,
   SlidersHorizontal,
   Target,
+  FileSignature,
   // LayoutTemplate,
 } from 'lucide-react';
-import type { ProviderSetting, UserPreferences } from '../types';
+import type { FilenameField, ProviderSetting, UserPreferences } from '../types';
 import { getPreferences, getSettings, saveSetting, testProviderConnection, updatePreferences } from '../api/client';
+import { FilenameFieldOrder } from '../components/settings/FilenameFieldOrder';
 import { ModelPresets } from '../components/settings/ModelPresets';
 import { ProviderUsagePanel } from '../components/settings/ProviderUsagePanel';
 import { Toggle } from '../components/settings/Toggle';
@@ -115,7 +117,10 @@ export const SettingsPage: React.FC = () => {
   const [usageRefresh, setUsageRefresh] = useState<Record<string, number>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const [preferences, setPreferences] = useState<UserPreferences>({ gap_analysis_enabled: true });
+  const [preferences, setPreferences] = useState<UserPreferences>({
+    gap_analysis_enabled: true,
+    pdf_filename_fields: ['company'],
+  });
   const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [savingPreference, setSavingPreference] = useState(false);
 
@@ -196,6 +201,20 @@ export const SettingsPage: React.FC = () => {
     try {
       setPreferences(await updatePreferences({ gap_analysis_enabled: next }));
       showToast(next ? 'Gap Analysis enabled.' : 'Gap Analysis disabled.', 'success');
+    } catch (err: any) {
+      setPreferences(previous);
+      showToast(err.message || 'Failed to update preference', 'error');
+    } finally {
+      setSavingPreference(false);
+    }
+  };
+
+  const handleUpdateFilenameFields = async (next: FilenameField[]) => {
+    const previous = preferences;
+    setPreferences((prev) => ({ ...prev, pdf_filename_fields: next })); // optimistic
+    setSavingPreference(true);
+    try {
+      setPreferences(await updatePreferences({ pdf_filename_fields: next }));
     } catch (err: any) {
       setPreferences(previous);
       showToast(err.message || 'Failed to update preference', 'error');
@@ -538,6 +557,26 @@ export const SettingsPage: React.FC = () => {
                 />
               )}
             </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center space-x-2">
+              <FileSignature className="w-4 h-4 text-blue-600" />
+              <span>PDF Filename</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-1.5 mb-4 max-w-md leading-relaxed">
+              Choose what goes into your exported CV and cover letter filenames, and drag their
+              order with the arrows -- e.g. Designation, then Company, then your name.
+            </p>
+            {preferencesLoading ? (
+              <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+            ) : (
+              <FilenameFieldOrder
+                value={preferences.pdf_filename_fields}
+                onChange={handleUpdateFilenameFields}
+                disabled={savingPreference}
+              />
+            )}
           </div>
 
           <p className="text-xs text-slate-400 text-center">More preferences (like notifications) will appear here as they ship.</p>

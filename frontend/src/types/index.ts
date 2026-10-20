@@ -102,9 +102,14 @@ export interface ProviderSettingInput {
   is_default: boolean;
 }
 
+/** One piece of an exported PDF's filename, selectable and reorderable in Settings -> Preferences. */
+export type FilenameField = 'first_name' | 'last_name' | 'year_of_experience' | 'company' | 'designation';
+
 /** Feature toggles from Settings -> Preferences. New settings are added here as they ship. */
 export interface UserPreferences {
   gap_analysis_enabled: boolean;
+  // Ordered; which fields go into an exported CV/cover-letter PDF's filename, and in what order.
+  pdf_filename_fields: FilenameField[];
 }
 
 export const AI_PROVIDERS = ['groq', 'openai', 'anthropic', 'gemini', 'deepseek'] as const;

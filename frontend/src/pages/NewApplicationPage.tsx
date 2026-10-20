@@ -9,9 +9,10 @@ import {
   Loader2,
   UserX,
 } from 'lucide-react';
-import type { GenerateResponse, GeneratedCV, Profile } from '../types';
-import { generateCvAndCoverLetter, exportPdf, getProfile, getSettings } from '../api/client';
-import { downloadBlob, sanitizeForFilename } from '../utils/pdfExport';
+import type { FilenameField, GenerateResponse, GeneratedCV, Profile } from '../types';
+import { generateCvAndCoverLetter, exportPdf, getPreferences, getProfile, getSettings } from '../api/client';
+import { downloadBlob } from '../utils/pdfExport';
+import { buildPdfFilename } from '../utils/pdfFilename';
 // import { getDefaultTemplateId } from '../utils/templatePrefs';
 import { CvPreviewPanel } from '../components/CvPreviewPanel';
 import { CoverLetterPreviewPanel } from '../components/CoverLetterPreviewPanel';
@@ -25,6 +26,7 @@ export const NewApplicationPage: React.FC = () => {
   const [hasConfiguredProvider, setHasConfiguredProvider] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingContext, setLoadingContext] = useState(true);
+  const [filenameFields, setFilenameFields] = useState<FilenameField[]>(['company']);
 
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GenerateResponse | null>(null);
@@ -42,10 +44,15 @@ export const NewApplicationPage: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [profileData, settingsData] = await Promise.all([getProfile(), getSettings()]);
+        const [profileData, settingsData, preferences] = await Promise.all([
+          getProfile(),
+          getSettings(),
+          getPreferences().catch(() => null), // non-fatal: falls back to naming by company
+        ]);
         setProfile(profileData);
         const withKeys = settingsData.filter((s) => s.has_api_key);
         setHasConfiguredProvider(withKeys.length > 0);
+        if (preferences) setFilenameFields(preferences.pdf_filename_fields);
       } catch {
         // Non-fatal: generation will still surface a clear error if something's missing
       } finally {
@@ -98,7 +105,15 @@ export const NewApplicationPage: React.FC = () => {
       setExportError(null);
       // const blob = await exportPdf('cv', editedCv, getDefaultTemplateId('cv'));
       const blob = await exportPdf('cv', editedCv);
-      downloadBlob(blob, `CV_${sanitizeForFilename(company)}.pdf`);
+      downloadBlob(
+        blob,
+        buildPdfFilename('CV', filenameFields, {
+          fullName: editedCv.full_name,
+          company,
+          designation: position,
+          experiences: editedCv.experience,
+        }),
+      );
     } catch (err: any) {
       setExportError(err.message || 'Failed to export CV as PDF.');
     } finally {
@@ -113,7 +128,15 @@ export const NewApplicationPage: React.FC = () => {
       setExportError(null);
       // const blob = await exportPdf('cover_letter', editedCoverLetter, getDefaultTemplateId('cover_letter'));
       const blob = await exportPdf('cover_letter', editedCoverLetter);
-      downloadBlob(blob, `CoverLetter_${sanitizeForFilename(company)}.pdf`);
+      downloadBlob(
+        blob,
+        buildPdfFilename('CoverLetter', filenameFields, {
+          fullName: editedCv?.full_name,
+          company,
+          designation: position,
+          experiences: editedCv?.experience,
+        }),
+      );
     } catch (err: any) {
       setExportError(err.message || 'Failed to export cover letter as PDF.');
     } finally {

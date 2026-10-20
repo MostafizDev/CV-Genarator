@@ -26,13 +26,13 @@ def test_serialize_deserialize_round_trip():
 def test_get_preferences_defaults_to_enabled_for_a_new_user(client):
     res = client.get("/api/preferences")
     assert res.status_code == 200
-    assert res.json() == {"gap_analysis_enabled": True}
+    assert res.json() == {"gap_analysis_enabled": True, "pdf_filename_fields": ["company"]}
 
 
 def test_put_preferences_updates_and_persists(client):
     res = client.put("/api/preferences", json={"gap_analysis_enabled": False})
     assert res.status_code == 200
-    assert res.json() == {"gap_analysis_enabled": False}
+    assert res.json() == {"gap_analysis_enabled": False, "pdf_filename_fields": ["company"]}
 
     # Persisted -- a fresh GET (and a fresh request context) sees the same value.
     assert client.get("/api/preferences").json()["gap_analysis_enabled"] is False
@@ -60,3 +60,17 @@ def test_preferences_are_isolated_per_user(client):
     other = _client_as("prefs-other-user")
     client.put("/api/preferences", json={"gap_analysis_enabled": False})
     assert other.get("/api/preferences").json()["gap_analysis_enabled"] is True
+
+
+def test_pdf_filename_fields_can_be_reordered_and_rejects_unknown_fields(client):
+    res = client.put("/api/preferences", json={"pdf_filename_fields": ["designation", "first_name", "company"]})
+    assert res.status_code == 200
+    assert res.json()["pdf_filename_fields"] == ["designation", "first_name", "company"]
+    # Setting this doesn't touch the other preference.
+    assert res.json()["gap_analysis_enabled"] is True
+
+    assert client.put("/api/preferences", json={"pdf_filename_fields": ["not_a_real_field"]}).status_code == 422
+
+    # Duplicates are silently deduped, keeping first occurrence's position.
+    deduped = client.put("/api/preferences", json={"pdf_filename_fields": ["company", "company", "designation"]})
+    assert deduped.json()["pdf_filename_fields"] == ["company", "designation"]
