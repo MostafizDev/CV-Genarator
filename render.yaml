@@ -1,0 +1,72 @@
+# Render Blueprint -- see https://render.com/docs/blueprint-spec
+#
+# Deploy: Render dashboard -> New -> Blueprint -> select this repo. Render reads this
+# file and creates the service below. Fields marked `sync: false` are prompted for once
+# during Blueprint creation and are never stored in this file / git.
+#
+# The database itself is NOT defined here -- it was already created by hand in the
+# Render dashboard (a `databases:` block would only apply to a DB Render also creates).
+# Paste its connection string into DATABASE_URL / MIGRATION_DATABASE_URL when prompted,
+# with "?sslmode=require" appended, e.g.:
+#   postgresql://user:password@host/dbname?sslmode=require
+#
+# IMPORTANT: this web service's `region` below MUST match the Postgres database's
+# region -- Render's internal connection strings (the dpg-xxxxx-a hostnames, no
+# ".render.com" suffix) only resolve between services in the same region.
+#
+# Known limitation: this single Postgres user both owns the tables and connects as the
+# app at runtime, so Row Level Security (see backend/migrations.py) is created but not
+# actually enforced -- the owner role bypasses it by definition, the same way SQLite
+# never enforced it. Encryption at rest and in transit (sslmode=require) still apply
+# regardless. To get RLS actually enforced, create a second, restricted Postgres role
+# (see backend/scripts/dev_db.sh for the pattern) and use it for DATABASE_URL while
+# keeping the original owner role for MIGRATION_DATABASE_URL.
+
+services:
+  - type: web
+    name: backedstory
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: ohio
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      # Firebase Web App config -- compiled into the frontend bundle at Docker build
+      # time (Render auto-passes matching env vars as Docker build ARGs; see Dockerfile).
+      # Safe to keep in this file: Firebase's security model is rule/Admin-SDK-based,
+      # not key-secrecy-based.
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyCp0Fc6WJovytoHuPEWK4THN5Zu4RIIOAk
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        value: cv-maker-6ee87.firebaseapp.com
+      - key: VITE_FIREBASE_PROJECT_ID
+        value: cv-maker-6ee87
+      - key: VITE_FIREBASE_APP_ID
+        value: "1:377792757074:web:3a9902d851630d95d78e8b"
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        value: "377792757074"
+
+      # Read again at runtime by the backend (Firebase Admin SDK).
+      - key: FIREBASE_PROJECT_ID
+        value: cv-maker-6ee87
+      # Paste the FULL contents of firebase-service-account.json when prompted.
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+
+      # Paste the Postgres connection string (with ?sslmode=require appended) when
+      # prompted -- the same value for both, since this DB has only one role. See the
+      # "Known limitation" note above.
+      - key: DATABASE_URL
+        sync: false
+      - key: MIGRATION_DATABASE_URL
+        sync: false
+
+      # Paste the value given alongside this file when prompted -- do not reuse the
+      # Fly.io deployment's key, each deployment should have its own.
+      - key: DATA_ENCRYPTION_KEYS
+        sync: false
+      # Render generates this one itself; nothing to paste.
+      - key: JWT_SECRET
+        generateValue: true
