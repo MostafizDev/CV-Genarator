@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { onAuthStateChanged, signInWithPopup } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
+// import { signInWithPopup } from 'firebase/auth';
 import { Link, Route, Routes } from 'react-router-dom';
 import { routes } from '../config/routes';
 import { HomePage } from '../pages/HomePage';
 import { PrivacyPage } from '../pages/PrivacyPage';
 import { Loader2 } from 'lucide-react';
-import { auth, googleProvider } from '../firebase';
+import { auth } from '../firebase';
+// import { googleProvider } from '../firebase'; // Google sign-in temporarily disabled -- see handleGoogleSignIn below.
 import {
   syncSession,
   getCurrentUser,
@@ -20,7 +22,7 @@ type Status = 'checking' | 'authed' | 'locked';
 
 export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [status, setStatus] = useState<Status>('checking');
-  const [signingIn, setSigningIn] = useState(false);
+  // const [signingIn, setSigningIn] = useState(false); // Google sign-in temporarily disabled
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,18 +64,20 @@ export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children })
     };
   }, []);
 
-  const handleGoogleSignIn = async () => {
-    setSigningIn(true);
-    setError(null);
-    try {
-      await signInWithPopup(auth, googleProvider);
-      // onAuthStateChanged above picks up the signed-in user and runs syncSession().
-    } catch (err: any) {
-      setError(err.message || 'Google sign-in failed. Please try again.');
-    } finally {
-      setSigningIn(false);
-    }
-  };
+  // Google sign-in temporarily disabled (Firebase authorized-domain setup issue on the
+  // current deploy) -- the button and handler are commented out below, not removed.
+  // const handleGoogleSignIn = async () => {
+  //   setSigningIn(true);
+  //   setError(null);
+  //   try {
+  //     await signInWithPopup(auth, googleProvider);
+  //     // onAuthStateChanged above picks up the signed-in user and runs syncSession().
+  //   } catch (err: any) {
+  //     setError(err.message || 'Google sign-in failed. Please try again.');
+  //   } finally {
+  //     setSigningIn(false);
+  //   }
+  // };
 
   const handlePasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,6 +146,9 @@ export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children })
                 </button>
               </form>
 
+              {/* Google sign-in temporarily disabled (Firebase authorized-domain setup
+                  issue on the current deploy) -- the "or" divider and button are commented
+                  out together, not removed, so re-enabling later is a single uncomment.
               <div className="flex items-center space-x-3 text-xs text-slate-400">
                 <div className="flex-1 h-px bg-slate-200" />
                 <span>or</span>
@@ -178,6 +185,7 @@ export const LoginGate: React.FC<{ children: React.ReactNode }> = ({ children })
                   )}
                   <span>{signingIn ? 'Signing in...' : 'Sign in with Google'}</span>
                 </button>
+              */}
 
               <p className="text-center text-xs text-slate-500">
                 New here?{' '}
